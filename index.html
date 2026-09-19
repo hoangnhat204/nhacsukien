@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark" data-size="normal">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRÌNH PHÁT NHẠC SỰ KIỆN NIX BÙI</title>
+    <meta name="description" content="Ứng dụng điều phối âm thanh sân khấu, bộ phát đôi, bàn phím hiệu ứng âm thanh tức thì và kịch bản chương trình sự kiện bằng tiếng Việt.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=compact-file-cards-3">
+</head>
+<body>
+    <div class="soundboard-spectrum" aria-hidden="true">
+        <canvas id="soundboardSpectrum" width="1440" height="900"></canvas>
+    </div>
+    <div class="app-container">
+        <!-- THANH ĐIỀU KHIỂN ĐỈNH (TOP BAR) -->
+        <header class="top-bar">
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <span class="logo-text-orange">
+                        <span class="brand-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                        <span class="brand-name">NIX BÙI</span>
+                    </span>
+                    <div class="logo-text">
+                        <h1>TRÌNH PHÁT NHẠC SỰ KIỆN</h1>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ĐỒNG HỒ GIỜ THỰC TẾ -->
+            <div class="stage-clock-section">
+                <div class="clock-box">
+                    <span class="clock-label">GIỜ THỰC TẾ</span>
+                    <div id="realtimeClock" class="digital-display">00:00:00</div>
+                </div>
+            </div>
+
+            <!-- CÁC NÚT THAO TÁC TRÊN ĐỈNH -->
+            <div class="top-actions">
+                <!-- ÂM LƯỢNG TỔNG (MASTER VOLUME) -->
+                <!-- NÚT CHUYỂN CHỦ ĐỀ SÁNG / TỐI -->
+                <button id="btnThemeToggle" class="action-tool-btn icon-only" title="Giao diện Sáng / Tối">
+                    <span id="themeIcon">☀️</span>
+                </button>
+
+                <!-- HƯỚNG DẪN PHÍM TẮT -->
+                <button id="btnHotkeyHelp" class="action-tool-btn icon-only" title="Xem danh sách phím tắt nhanh">
+                    <span>⌨️</span>
+                </button>
+
+            </div>
+        </header>
+
+        <!-- KHU VỰC LÀM VIỆC CHÍNH (WORKSTATION) -->
+        <div class="split-container">
+        <main class="workstation-main">
+
+            <!-- KHU VỰC PHẢI: BÀN PHÍM HIỆU ỨNG TỨC THÌ (16 Ô PHÍM NHANH) -->
+            <section class="soundboard-area">
+                <div class="soundboard-header">
+                    <div class="soundboard-title">
+                        <h2>BÀN PHÍM ÂM THANH TỨC THÌ</h2>
+                    </div>
+
+                    <!-- BẢNG ĐIỀU KHIỂN HIỆU ỨNG TRUNG TÂM (TINH GỌN Ở GIỮA) -->
+                    <div class="soundboard-central-ctrl" id="soundboardCentralCtrl">
+                        <div class="central-pad-info" title="Phím hiệu ứng đang chọn">
+                            <span class="central-key-badge" id="centralKeyBadge">--</span>
+                            <span class="central-pad-name" id="centralPadName">Chưa chọn phím</span>
+                        </div>
+                        <div class="central-btn-group">
+                            <button type="button" class="btn-central-act btn-central-play" id="btnCentralPlay" title="Phát hoặc Tạm dừng hiệu ứng đang chọn">
+                                <span id="centralPlayIcon">▶</span> <span id="centralPlayText">Phát</span>
+                            </button>
+                            <button type="button" class="btn-central-act btn-central-loop" id="btnCentralLoop" title="Bật/Tắt lặp lại liên tục cho phím này">
+                                🔁 Lặp lại
+                            </button>
+                            <button type="button" class="btn-central-act btn-central-fade" id="btnCentralFade" title="Hạ nhỏ nhạc dần về 0 trong 3 giây">
+                                🔉 Nhỏ dần 3s
+                            </button>
+                        </div>
+                <div class="header-master-vol" title="Âm lượng xuất ra loa chính">
+                    <span class="header-vol-icon">🔊</span>
+                    <div class="header-vol-controls">
+                        <div class="header-vol-label-row">
+                            <span class="header-vol-title">ÂM LƯỢNG TỔNG</span>
+                            <span id="masterVolVal" class="header-vol-val">90%</span>
+                        </div>
+                        <input type="range" id="masterVolumeSlider" min="0" max="1.2" step="0.01" value="0.9" class="slider header-master-slider">
+                    </div>
+                    <div class="ducking-indicator" id="duckingBadge" style="display: none;">NHẠC CHUẨN</div>
+                </div>
+                    </div>
+
+                    <div class="soundboard-tools">
+                        <select id="quickFxPlayMode" class="quick-fx-play-mode" aria-label="Chế độ phát âm thanh" title="Chế độ phát âm thanh">
+                            <option value="poly">Phát đồng thời nhiều âm</option>
+                            <option value="cut">Ngắt âm cũ khi phát âm mới</option>
+                        </select>
+                        <button type="button" class="btn-add-pad" id="btnAddPad" title="Thêm ô phím hiệu ứng âm thanh mới">
+                            ➕ Thêm phím
+                        </button>
+                        <button class="btn-global-settings" id="btnGlobalSettings" title="Cài đặt bàn phím âm thanh hiệu ứng">
+                            ⚙ Cài đặt phím
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LƯỚI BÀN PHÍM HIỆU ỨNG TỨC THÌ: 0 - 9 VÀ TOÀN BỘ CHỮ CÁI A - Z (36 PHÍM) -->
+                <div class="soundboard-grid" id="soundboardGrid">
+                    <!-- Tự động sinh bởi JavaScript: 36 ô phím từ 0 đến 9 và A đến Z -->
+                </div>
+            </section>
+        </main>
+
+        <!-- THANH KÉO CHIA ĐÔI (RESIZE HANDLE) -->
+        <div class="resize-handle" id="resizeHandle" title="Kéo để thay đổi tỉ lệ">
+            <div class="resize-grip"></div>
+        </div>
+
+        <!-- KHU VỰC DƯỚI: KỊCH BẢN SỰ KIỆN THEO TIẾN TRÌNH & DANH SÁCH BÀI HÁT -->
+        <!-- KHU VỰC DANH SÁCH NHẠC NỀN ĐÃ TẢI LÊN -->
+        <footer class="uploaded-music-area" id="uploadedMusicArea">
+            <div class="music-header-row">
+                <div class="music-title-group">
+                    <span class="music-section-icon">🎵</span>
+                    <strong class="music-section-title">DANH SÁCH NHẠC ĐÃ TẢI LÊN</strong>
+                    <span class="music-count-badge" id="musicCountBadge">0 bài</span>
+                </div>
+
+                <div class="music-actions-group">
+                    <label class="btn-upload-direct" title="Tải lên file nhạc MP3, WAV từ máy tính (chọn 1 hoặc nhiều file)">
+                        ➕ TẢI LÊN FILE NHẠC TỪ MÁY TÍNH
+                        <input type="file" id="playlistFileInput" accept="audio/*" multiple class="hidden-input">
+                    </label>
+                </div>
+            </div>
+
+
+            <!-- DANH SÁCH TẤT CẢ FILE ĐÃ UP -->
+            <div class="uploaded-files-container" id="playlistContainer">
+                <!-- Hiển thị tất cả file đã tải lên bằng JavaScript -->
+            </div>
+        </footer>
+        </div><!-- end split-container -->
+    </div>
+
+    <!-- HỘP THOẠI: CÀI ĐẶT CHUNG (TÁCH RIÊNG: CÀI ĐẶT PHÍM & CÀI ĐẶT NHẠC DƯỚI) -->
+    <div class="modal-overlay hidden" id="globalSettingsModal">
+        <div class="modal-card modal-card-wide">
+            <div class="modal-header">
+                <h3>⚙️ Cài Đặt Hệ Thống & Quản Lý</h3>
+                <button class="btn-modal-close" id="btnGlobalSettingsClose">&times;</button>
+            </div>
+
+            <!-- THANH CHUYỂN TAB TÁCH BIỆT RÕ RÀNG -->
+            <div class="modal-tabs-header">
+                <button type="button" class="modal-tab-nav active" id="modalTabNavPad" data-target="modalSectionPad">
+                    🎹 ĐÂY LÀ CÀI ĐẶT PHÍM
+                </button>
+            </div>
+
+            <div class="modal-body modal-body-scrollable">
+                <!-- ======================================================== -->
+                <!-- KHU VỰC 1: ĐÂY LÀ CÀI ĐẶT PHÍM (BÀN PHÍM HIỆU ỨNG ÂM THANH) -->
+                <!-- ======================================================== -->
+                <div class="modal-section-container" id="modalSectionPad">
+
+                    <!-- TÙY CHỌN CHẾ ĐỘ PHÁT BÀN PHÍM -->
+                    <div class="modal-section-box">
+                        <span class="section-title">⚡ TÙY CHỌN CHẾ ĐỘ PHÁT HIỆU ỨNG (FX)</span>
+                        <div class="fx-options-grid">
+                            <div class="form-group">
+                                <label>Chế độ phát âm thanh:</label>
+                                <select id="settingFxPlayMode" class="form-input">
+                                    <option value="poly">Phát đồng thời nhiều âm</option>
+                                    <option value="cut">Ngắt âm cũ khi phát âm mới</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BẢNG QUẢN LÝ TẤT CẢ CÁC PHÍM HIỆN CÓ -->
+                    <div class="modal-section-box">
+                        <div class="modal-section-header">
+                            <div class="section-title-wrap">
+                                <span class="section-title">⌨️ DANH SÁCH TẤT CẢ CÁC PHÍM HIỆU ỨNG HIỆN CÓ</span>
+                                <span class="badge-count" id="modalPadCount">16 phím</span>
+                            </div>
+                            <div class="modal-track-actions">
+                                <button type="button" class="btn-add-pad-modal" id="modalBtnAddNewPad" title="Thêm một phím hiệu ứng mới">
+                                    ➕ Thêm phím mới
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-playlist-table-wrapper" style="max-height: 240px;">
+                            <table class="modal-playlist-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 35px; text-align: center;">STT</th>
+                                        <th style="width: 50px; text-align: center;">Phím</th>
+                                        <th>Tên hiệu ứng</th>
+                                        <th style="width: 150px;">Âm thanh</th>
+                                        <th style="width: 70px; text-align: center;">Thời lượng</th>
+                                        <th style="width: 70px; text-align: center;">Âm lượng</th>
+                                        <th style="width: 80px; text-align: center;">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modalPadListTbody">
+                                    <!-- Populated dynamically by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- KHU VỰC 2: CÀI ĐẶT NHẠC DƯỚI (KỊCH BẢN BÀI HÁT SỰ KIỆN) -->
+                <!-- ======================================================== -->
+                <div class="modal-section-container hidden" id="modalSectionPlaylist">
+                    <div class="section-notice-banner banner-playlist">
+                        <span class="notice-icon">📋</span>
+                        <div>
+                            <strong>KHU VỰC CÀI ĐẶT & QUẢN LÝ NHẠC KỊCH BẢN (NHẠC BÊN DƯỚI)</strong>
+                            <p>Quản lý toàn bộ bài hát trong kịch bản sự kiện, nạp hàng loạt file MP3/WAV hoặc xóa bài hát.</p>
+                        </div>
+                    </div>
+
+                    <div class="modal-section-box">
+                        <div class="modal-section-header">
+                            <div class="section-title-wrap">
+                                <span class="section-title">📋 TẤT CẢ FILE NHẠC ĐÃ TẢI LÊN</span>
+                                <span class="badge-count" id="modalTrackCount">0 bài</span>
+                            </div>
+                            <div class="modal-track-actions">
+                                <label class="btn-bulk-import" title="Chọn nhiều file MP3/WAV để thêm cùng lúc">
+                                    ➕ Nhập hàng loạt file
+                                    <input type="file" id="modalBulkFileInput" accept="audio/*" multiple class="hidden-input">
+                                </label>
+                                <button type="button" class="btn-clear-all" id="modalBtnClearAll" title="Xóa toàn bộ bài hát">
+                                    🗑 Xóa tất cả
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="modal-playlist-table-wrapper">
+                            <table class="modal-playlist-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 35px; text-align: center;">STT</th>
+                                        <th>Tên file bài hát</th>
+                                        <th style="width: 80px; text-align: center;">Thời lượng</th>
+                                        <th style="width: 45px; text-align: center;">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modalPlaylistTbody">
+                                    <!-- Populated dynamically by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnGlobalSettingsCancel">Đóng</button>
+                <button type="button" class="btn-primary btn-save-bulk" id="btnGlobalSettingsSave">💾 Lưu thay đổi & Kịch bản</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HỘP THOẠI: CẤU HÌNH Ô HIỆU ỨNG ÂM THANH -->
+    <div class="modal-overlay hidden" id="padConfigModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalPadTitle">Cấu hình Ô hiệu ứng</h3>
+                <button class="btn-modal-close" id="btnModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tên hiển thị trên ô:</label>
+                    <input type="text" id="modalPadName" class="form-input" placeholder="Nhập tên hiệu ứng">
+                </div>
+                <div class="form-group">
+                    <label>Phím tắt trên bàn phím (Hotkey):</label>
+                    <input type="text" id="modalPadKey" class="form-input" maxlength="2" placeholder="Ví dụ: 1, Q, A, Z...">
+                </div>
+                <div class="form-group">
+                    <label>📁 Chọn file âm thanh từ máy tính (MP3, WAV, OGG, M4A):</label>
+                    <input type="file" id="modalPadFileInput" accept="audio/*" class="form-file">
+                    <small class="form-hint" id="modalCustomStatus">Chưa có file âm thanh nào.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-danger-sm" id="btnModalDeletePad" style="margin-right: auto;" title="Xóa ô phím hiệu ứng này">🗑 Xóa phím này</button>
+                <button type="button" class="btn-secondary" id="btnModalReset" title="Gỡ bỏ file âm thanh đã nạp cho phím này">Gỡ bỏ file âm thanh</button>
+                <button type="button" class="btn-primary" id="btnModalSave">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HỘP THOẠI: HƯỚNG DẪN PHÍM TẮT -->
+    <div class="modal-overlay hidden" id="hotkeyHelpModal">
+        <div class="modal-card hotkey-modal-card">
+            <div class="modal-header">
+                <h3>⌨️ Danh Sách Phím Tắt Nhanh Cho Sự Kiện</h3>
+                <button class="btn-modal-close" id="btnHelpModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="hotkey-table-grid">
+                    <div class="hotkey-row">
+                        <span class="hk-badge">ESC</span>
+                        <span class="hk-desc">🚨 <strong>DỪNG KHẨN CẤP</strong> - Ngắt toàn bộ âm thanh ngay lập tức khi có sự cố</span>
+                    </div>
+                    <div class="hotkey-row">
+                        <span class="hk-badge">Shift + Space</span>
+                        <span class="hk-desc">▶ <strong>Phát / Tạm dừng</strong> nhạc nền kịch bản sự kiện</span>
+                    </div>
+                    <div class="hotkey-row">
+                        <span class="hk-badge">Phím 0 - 9</span>
+                        <span class="hk-desc">Bấm nhanh 10 phím số từ <strong>0 đến 9</strong> để phát tức thì âm thanh đã gán</span>
+                    </div>
+                    <div class="hotkey-row">
+                        <span class="hk-badge">Phím A - Z</span>
+                        <span class="hk-desc">Bấm nhanh toàn bộ 26 phím chữ cái tiếng Anh từ <strong>A đến Z</strong></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" id="btnHelpModalOk">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nạp mã nguồn kịch bản xử lý -->
+    <script src="audio-engine.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
