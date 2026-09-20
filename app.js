@@ -609,6 +609,15 @@ document.addEventListener('DOMContentLoaded', () => {
             data.duration = formatPadDurationDisplay(engine.soundboardBuffers[padId].duration);
         }
 
+        // Lưu file âm thanh thực tế vào IndexedDB để không bị mất khi F5 / offline
+        if (window.audioDB) {
+            await window.audioDB.savePadAudio(padId, file, {
+                fileName: data.fileName,
+                title: data.name,
+                duration: data.duration
+            });
+        }
+
         savePadConfig();
         renderSoundboard();
         renderModalPadListTable();
@@ -1187,6 +1196,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopPadAnimation(padId);
                 if (engine && engine.stopPad) engine.stopPad(padId);
                 if (engine && engine.soundboardBuffers) delete engine.soundboardBuffers[padId];
+                if (window.audioDB) window.audioDB.deletePadAudio(padId);
 
                 if (hasCustomSound) {
                     padData[padId].isCustom = false;
@@ -1383,6 +1393,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btnGlobalSettingsSave.addEventListener('click', () => {
             // 1. Áp dụng danh sách bài hát mới
             playlistTracks = modalTracks.map(t => ({ ...t }));
+            if (window.audioDB) {
+                window.audioDB.clearAllTracks().then(() => {
+                    window.audioDB.saveAllTracks(playlistTracks);
+                });
+            }
             renderPlaylist();
 
             // 2. Lưu cài đặt FX
@@ -1751,6 +1766,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (playlistCurrentTime) playlistCurrentTime.textContent = '00:00';
                 }
                 playlistTracks = playlistTracks.filter(t => t.id !== track.id);
+                if (window.audioDB) {
+                    window.audioDB.deleteTrack(track.id);
+                }
                 renderPlaylist();
             });
 
@@ -1780,13 +1798,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } catch (err) {}
 
-            playlistTracks.push({
+            const trackObj = {
                 id: trackId,
                 title: title,
                 fileName: f.name,
                 duration: durText,
-                file: f
-            });
+                file: f,
+                dateAdded: Date.now() + idx
+            };
+            playlistTracks.push(trackObj);
+
+            // Lưu trực tiếp vào IndexedDB để không bị mất khi F5 hoặc mất mạng
+            if (window.audioDB) {
+                await window.audioDB.saveTrack(trackObj);
+            }
         }
 
         renderPlaylist();
@@ -1827,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnClearAllTracks) {
-        btnClearAllTracks.addEventListener('click', () => {
+        btnClearAllTracks.addEventListener('click', async () => {
             if (playlistTracks.length === 0) return;
             if (confirm('Bạn có chắc muốn xóa tất cả các bài hát đã tải lên?')) {
                 engine.stopDeck('A');
@@ -1837,12 +1862,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (playlistProgressFill) playlistProgressFill.style.width = '0%';
                 if (playlistCurrentTime) playlistCurrentTime.textContent = '00:00';
                 playlistTracks = [];
+                if (window.audioDB) {
+                    await window.audioDB.clearAllTracks();
+                }
                 renderPlaylist();
+                showToast('🗑 Đã xóa toàn bộ danh sách bài hát!');
             }
         });
     }
 
     renderPlaylist();
+
+    // =========================================================
+    // KHÔI PHỤC DỮ LIỆU ÂM THANH ĐÃ LƯU TRỮ (OFFLINE / F5 RELOAD)
+    // =========================================================
+    async function restorePersistedAudioData() {
+        if (!window.audioDB) return;
+        try {
+            // 1. Khôi phục toàn bộ bài hát kịch bản từ IndexedDB
+            const savedTracks = await window.audioDB.getAllTracks();
+            if (savedTracks && savedTracks.length > 0) {
+                playlistTracks = savedTracks;
+                renderPlaylist();
+                console.log(`✅ [IndexedDB] Đã khôi phục ${savedTracks.length} bài hát kịch bản.`);
+            }
+
+            // 2. Khôi phục toàn bộ file âm thanh các ô phím hiệu ứng từ IndexedDB
+            const savedPadAudios = await window.audioDB.getAllPadAudios();
+            if (savedPadAudios && savedPadAudios.length > 0) {
+                let restoredPadCount = 0;
+                for (const item of savedPadAudios) {
+                    const padId = String(item.padId);
+                    if (item.blob && padData[padId]) {
+                        const ok = await engine.loadCustomPadAudio(padId, item.blob);
+                        if (ok) {
+                            padData[padId].isCustom = true;
+                            padData[padId].fileName = item.fileName || padData[padId].fileName;
+                            if (item.title) padData[padId].name = item.title;
+                            if (item.duration && item.duration !== '--') {
+                                padData[padId].duration = item.duration;
+                            } else if (engine.soundboardBuffers[padId]) {
+                                padData[padId].duration = formatPadDurationDisplay(engine.soundboardBuffers[padId].duration);
+                            }
+                            restoredPadCount++;
+                        }
+                    }
+                }
+                if (restoredPadCount > 0) {
+                    renderSoundboard();
+                    renderModalPadListTable();
+                    updateCentralController();
+                    console.log(`✅ [IndexedDB] Đã nạp lại âm thanh cho ${restoredPadCount} phím hiệu ứng.`);
+                }
+            }
+
+            if ((savedTracks && savedTracks.length > 0) || (savedPadAudios && savedPadAudios.length > 0)) {
+                showToast('⚡ Đã nạp lại đầy đủ kho nhạc đã lưu sẵn sàng hoạt động!');
+            }
+        } catch (err) {
+            console.warn('Lỗi nạp dữ liệu âm thanh lưu trữ:', err);
+        }
+    }
+
+    // Tự động khôi phục ngay khi mở app
+    restorePersistedAudioData();
 
     // =========================================================
     // 10. HỘP THOẠI CẤU HÌNH Ô HIỆU ỨNG (PAD CONFIG)
@@ -1900,10 +1983,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (success) {
                 data.isCustom = true;
                 data.fileName = file.name;
+                if (window.audioDB) {
+                    await window.audioDB.savePadAudio(currentEditingPadId, file, {
+                        fileName: data.fileName,
+                        title: data.name,
+                        duration: data.duration
+                    });
+                }
                 try {
                     const tempAudio = new Audio(URL.createObjectURL(file));
-                    tempAudio.addEventListener('loadedmetadata', () => {
+                    tempAudio.addEventListener('loadedmetadata', async () => {
                         data.duration = tempAudio.duration.toFixed(1);
+                        if (window.audioDB) {
+                            await window.audioDB.savePadAudio(currentEditingPadId, file, {
+                                fileName: data.fileName,
+                                title: data.name,
+                                duration: data.duration
+                            });
+                        }
                         savePadConfig();
                         renderSoundboard();
                         renderModalPadListTable();
@@ -1934,6 +2031,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stopPadAnimation(targetId);
             if (engine && engine.stopPad) engine.stopPad(targetId);
             if (engine && engine.soundboardBuffers) delete engine.soundboardBuffers[targetId];
+            if (window.audioDB) window.audioDB.deletePadAudio(targetId);
 
             // Nếu phím đang nạp bài hát: xóa bài hát và khôi phục ô phím về mặc định ban đầu
             if (hasCustomSound) {
@@ -1977,6 +2075,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data.volume = 1.0;
             data.name = `Phím ${data.key || ''}`;
             if (engine && engine.soundboardBuffers) delete engine.soundboardBuffers[currentEditingPadId];
+            if (window.audioDB) window.audioDB.deletePadAudio(currentEditingPadId);
             renderSoundboard();
             savePadConfig();
             renderModalPadListTable();

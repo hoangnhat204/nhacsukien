@@ -7,8 +7,11 @@
     <meta name="description" content="Ứng dụng điều phối âm thanh sân khấu, bộ phát đôi, bàn phím hiệu ứng âm thanh tức thì và kịch bản chương trình sự kiện bằng tiếng Việt.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=compact-file-cards-3">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+    </noscript>
+    <link rel="stylesheet" href="styles.css">
     <!-- PWA Meta & Icons -->
     <meta name="theme-color" content="#0a0c10">
     <meta name="mobile-web-app-capable" content="yes">
@@ -349,6 +352,7 @@
 
     <!-- Nạp mã nguồn kịch bản xử lý -->
     <script src="audio-engine.js"></script>
+    <script src="audio-db.js"></script>
     <script src="app.js"></script>
 
     <!-- Đăng ký Progressive Web App (PWA) & Xử lý Cài đặt -->
@@ -359,10 +363,20 @@
                 navigator.serviceWorker.register('./sw.js')
                     .then((reg) => {
                         console.log('✅ ServiceWorker đăng ký thành công:', reg.scope);
+                        reg.update();
                     })
                     .catch((err) => {
                         console.warn('⚠️ Lỗi đăng ký ServiceWorker:', err);
                     });
+            });
+
+            // Khi Service Worker phiên bản mới kích hoạt, tự động cập nhật mượt mà
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
             });
         }
 
