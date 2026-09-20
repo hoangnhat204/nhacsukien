@@ -1,6 +1,6 @@
 // Service Worker cho Trình Phát Nhạc Sự Kiện NIX BÙI
-// Phiên bản v3 - Hỗ trợ hoạt động Ngoại tuyến (Offline 100%) tức thì và siêu tốc
-const CACHE_NAME = 'nhac-su-kien-v3';
+// Phiên bản v4 - Đảm bảo khôi phục vĩnh viễn dữ liệu và âm thanh khi tắt mở app
+const CACHE_NAME = 'nhac-su-kien-v4';
 
 const ASSETS_TO_CACHE = [
   './',

@@ -148,13 +148,25 @@ class EventAudioEngine {
         });
     }
 
-    async ensureContext() {
+    // Khởi tạo AudioContext nếu chưa có
+    ensureContext() {
         if (!this.initialized) {
             this.init();
         }
+        return this.ctx;
+    }
+
+    // Đánh thức AudioContext khi có tương tác người dùng (phát nhạc, bấm nút)
+    async resumeContext() {
+        this.ensureContext();
         if (this.ctx && this.ctx.state === 'suspended') {
-            await this.ctx.resume();
+            try {
+                await this.ctx.resume();
+            } catch (err) {
+                // Sẽ tự kích hoạt khi có tương tác người dùng
+            }
         }
+        return this.ctx;
     }
 
     // Set Master Volume (0 - 1)
@@ -218,7 +230,7 @@ class EventAudioEngine {
 
     // Play Deck
     async playDeck(deckId) {
-        await this.ensureContext();
+        await this.resumeContext();
         const deck = this.decks[deckId];
         if (!deck || !deck.audio.src) return false;
 
@@ -359,7 +371,7 @@ class EventAudioEngine {
 
     // --- SOUNDBOARD SYNTHESIZER & SAMPLE GENERATOR ---
     async playSyntheticPad(type, padId = null, padGainVal = 1.0) {
-        await this.ensureContext();
+        await this.resumeContext();
 
         const padGain = this.ctx.createGain();
         padGain.gain.setValueAtTime(padGainVal, this.ctx.currentTime);
@@ -903,7 +915,8 @@ class EventAudioEngine {
 
     // Load custom audio file for a pad
     async loadCustomPadAudio(padId, file) {
-        await this.ensureContext();
+        this.ensureContext();
+        if (!this.ctx || !file) return false;
         try {
             const arrayBuffer = await file.arrayBuffer();
             const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
@@ -917,6 +930,7 @@ class EventAudioEngine {
 
     // Play custom audio for a pad (hỗ trợ phát tiếp từ vị trí tạm dừng)
     playCustomPad(padId, padGainVal = 1.0, isLoop = false, onEnded = null, fromBeginning = false, seekSeconds = null) {
+        this.resumeContext();
         const buffer = this.soundboardBuffers[padId];
         if (!buffer || !this.ctx) return 0;
 

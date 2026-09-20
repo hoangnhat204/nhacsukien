@@ -78,12 +78,13 @@ class EventAudioDB {
             try {
                 const tx = this.db.transaction('playlist_tracks', 'readwrite');
                 const store = tx.objectStore('playlist_tracks');
+                const blobData = track.file instanceof Blob ? track.file : (track.blob instanceof Blob ? track.blob : null);
                 const dataToSave = {
                     id: track.id,
                     title: track.title,
                     fileName: track.fileName || (track.file ? track.file.name : 'track.mp3'),
                     duration: track.duration || '00:00',
-                    blob: track.file instanceof Blob ? track.file : null,
+                    blob: blobData,
                     dateAdded: track.dateAdded || Date.now()
                 };
                 const req = store.put(dataToSave);
@@ -99,7 +100,7 @@ class EventAudioDB {
         });
     }
 
-    // Lưu hàng loạt bài hát cùng lúc
+    // Lưu hàng loạt bài hát cùng lúc (làm sạch và ghi lại trong cùng 1 transaction nguyên tử)
     async saveAllTracks(tracks) {
         await this.init();
         if (!this.db) return false;
@@ -108,19 +109,25 @@ class EventAudioDB {
             try {
                 const tx = this.db.transaction('playlist_tracks', 'readwrite');
                 const store = tx.objectStore('playlist_tracks');
+                store.clear();
                 tracks.forEach(track => {
+                    const blobData = track.file instanceof Blob ? track.file : (track.blob instanceof Blob ? track.blob : null);
                     store.put({
                         id: track.id,
                         title: track.title,
                         fileName: track.fileName || (track.file ? track.file.name : 'track.mp3'),
                         duration: track.duration || '00:00',
-                        blob: track.file instanceof Blob ? track.file : null,
+                        blob: blobData,
                         dateAdded: track.dateAdded || Date.now()
                     });
                 });
                 tx.oncomplete = () => resolve(true);
-                tx.onerror = () => resolve(false);
+                tx.onerror = (err) => {
+                    console.warn('Lỗi transaction saveAllTracks:', err);
+                    resolve(false);
+                };
             } catch (e) {
+                console.warn('Lỗi saveAllTracks:', e);
                 resolve(false);
             }
         });
@@ -216,17 +223,22 @@ class EventAudioDB {
             try {
                 const tx = this.db.transaction('pad_audios', 'readwrite');
                 const store = tx.objectStore('pad_audios');
+                const blobData = fileOrBlob instanceof Blob ? fileOrBlob : null;
                 const req = store.put({
                     padId: String(padId),
                     fileName: meta.fileName || fileOrBlob.name || 'pad-sound.mp3',
                     title: meta.title || meta.name || '',
                     duration: meta.duration || '--',
-                    blob: fileOrBlob,
+                    blob: blobData,
                     savedAt: Date.now()
                 });
                 req.onsuccess = () => resolve(true);
-                req.onerror = () => resolve(false);
+                req.onerror = (err) => {
+                    console.warn('Lỗi savePadAudio:', err);
+                    resolve(false);
+                };
             } catch (e) {
+                console.warn('Lỗi transaction savePadAudio:', e);
                 resolve(false);
             }
         });
