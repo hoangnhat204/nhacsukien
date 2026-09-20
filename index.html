@@ -9,6 +9,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=compact-file-cards-3">
+    <!-- PWA Meta & Icons -->
+    <meta name="theme-color" content="#0a0c10">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nhạc Sự Kiện">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <div class="soundboard-spectrum" aria-hidden="true">
@@ -50,6 +59,11 @@
                     <span>⌨️</span>
                 </button>
 
+                <!-- CÀI ĐẶT ỨNG DỤNG (PWA) TRÊN GOOGLE CHROME / CỐC CỐC / EDGE -->
+                <button id="btnInstallPwa" class="action-tool-btn pwa-install-btn" style="display:none;" title="Cài đặt ứng dụng về máy tính hoặc điện thoại">
+                    <span>📥</span>
+                    <span class="pwa-install-text">Cài đặt ứng dụng</span>
+                </button>
             </div>
         </header>
 
@@ -336,5 +350,55 @@
     <!-- Nạp mã nguồn kịch bản xử lý -->
     <script src="audio-engine.js"></script>
     <script src="app.js"></script>
+
+    <!-- Đăng ký Progressive Web App (PWA) & Xử lý Cài đặt -->
+    <script>
+        // Đăng ký Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => {
+                        console.log('✅ ServiceWorker đăng ký thành công:', reg.scope);
+                    })
+                    .catch((err) => {
+                        console.warn('⚠️ Lỗi đăng ký ServiceWorker:', err);
+                    });
+            });
+        }
+
+        // Lắng nghe sự kiện cài đặt ứng dụng từ Google Chrome / Cốc Cốc / Edge
+        let deferredPwaPrompt = null;
+        const installPwaBtn = document.getElementById('btnInstallPwa');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Ngăn chặn thanh nhắc mặc định để hiển thị nút cài đặt đẹp mắt
+            e.preventDefault();
+            deferredPwaPrompt = e;
+            if (installPwaBtn) {
+                installPwaBtn.style.display = 'inline-flex';
+            }
+        });
+
+        if (installPwaBtn) {
+            installPwaBtn.addEventListener('click', async () => {
+                if (deferredPwaPrompt) {
+                    deferredPwaPrompt.prompt();
+                    const choiceResult = await deferredPwaPrompt.userChoice;
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('Người dùng đã đồng ý cài đặt ứng dụng.');
+                        installPwaBtn.style.display = 'none';
+                    }
+                    deferredPwaPrompt = null;
+                }
+            });
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('Ứng dụng đã được cài đặt thành công.');
+            if (installPwaBtn) {
+                installPwaBtn.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -2650,3 +2650,42 @@ input[type="range"]::-webkit-slider-thumb:hover {
     background: var(--accent-green);
     color: #fff;
 }
+
+/* --- NÚT CÀI ĐẶT ỨNG DỤNG (PWA) --- */
+.pwa-install-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #00f2fe 0%, #0284c7 100%);
+    color: #04111d !important;
+    font-weight: 700;
+    font-size: 11.5px;
+    padding: 6px 13px;
+    border-radius: 6px;
+    border: none;
+    box-shadow: 0 0 14px rgba(0, 242, 254, 0.45);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    animation: pwaBtnGlow 2.5s infinite ease-in-out;
+}
+
+.pwa-install-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.75);
+    background: linear-gradient(135deg, #38bdf8 0%, #00f2fe 100%);
+}
+
+.pwa-install-btn .pwa-install-text {
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+@keyframes pwaBtnGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(0, 242, 254, 0.35);
+    }
+    50% {
+        box-shadow: 0 0 22px rgba(0, 242, 254, 0.7);
+    }
+}
+
