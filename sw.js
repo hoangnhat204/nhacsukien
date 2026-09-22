@@ -1,6 +1,6 @@
 // Service Worker cho Trình Phát Nhạc Sự Kiện NIX BÙI
-// Phiên bản v4 - Đảm bảo khôi phục vĩnh viễn dữ liệu và âm thanh khi tắt mở app
-const CACHE_NAME = 'nhac-su-kien-v4';
+// Phiên bản v5 - Hỗ trợ cài đặt PWA trên iPhone, iPad, Android và Desktop
+const CACHE_NAME = 'nhac-su-kien-v5';
 
 const ASSETS_TO_CACHE = [
   './',

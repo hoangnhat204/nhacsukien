@@ -15,11 +15,13 @@
     <!-- PWA Meta & Icons -->
     <meta name="theme-color" content="#0a0c10">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Nhạc Sự Kiện">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -350,12 +352,119 @@
         </div>
     </div>
 
+    <!-- HỘP THOẠI: HƯỚNG DẪN CÀI ĐẶT ỨNG DỤNG CHO IPHONE, IPAD, ANDROID & MÁY TÍNH -->
+    <div class="modal-overlay hidden" id="pwaInstallModal">
+        <div class="modal-card pwa-guide-modal-card">
+            <div class="modal-header">
+                <h3>📲 Cài Đặt Ứng Dụng Về Điện Thoại & iPad</h3>
+                <button class="btn-modal-close" id="btnPwaModalClose">&times;</button>
+            </div>
+            <div class="modal-body pwa-guide-body">
+                <!-- TABS CHỌN THIẾT BỊ -->
+                <div class="pwa-guide-tabs">
+                    <button type="button" class="pwa-tab-btn active" data-tab="ios">🍎 iPhone / iPad</button>
+                    <button type="button" class="pwa-tab-btn" data-tab="android">🤖 Điện Thoại Android</button>
+                    <button type="button" class="pwa-tab-btn" data-tab="desktop">💻 Máy Tính (PC/Laptop)</button>
+                </div>
+
+                <!-- NỘI DUNG CHO IPHONE / IPAD -->
+                <div class="pwa-tab-pane active" id="panePwaIos">
+                    <div class="pwa-step-box">
+                        <div class="pwa-step-item">
+                            <span class="step-num">1</span>
+                            <div class="step-content">
+                                <strong>Mở bằng trình duyệt Safari</strong>
+                                <p>Trên iPhone hoặc iPad, mở liên kết web này bằng trình duyệt <strong>Safari</strong> (biểu tượng la bàn xanh).</p>
+                            </div>
+                        </div>
+                        <div class="pwa-step-item">
+                            <span class="step-num">2</span>
+                            <div class="step-content">
+                                <strong>Bấm nút Chia sẻ (Share) <span class="share-icon-badge">📤</span></strong>
+                                <p>Chạm vào biểu tượng <strong>ô vuông có mũi tên hướng lên</strong> (ở thanh dưới cùng của iPhone hoặc góc trên iPad).</p>
+                            </div>
+                        </div>
+                        <div class="pwa-step-item">
+                            <span class="step-num">3</span>
+                            <div class="step-content">
+                                <strong>Chọn "Thêm vào MH chính" ➕</strong>
+                                <p>Cuộn danh mục xuống và bấm chọn <strong>"Thêm vào MH chính"</strong> (tiếng Anh: <em>Add to Home Screen</em>).</p>
+                            </div>
+                        </div>
+                        <div class="pwa-step-item">
+                            <span class="step-num">4</span>
+                            <div class="step-content">
+                                <strong>Bấm "Thêm" (Add)</strong>
+                                <p>Bấm chữ <strong>"Thêm"</strong> ở góc trên bên phải. Biểu tượng ứng dụng sẽ xuất hiện trên màn hình chính và khởi chạy toàn màn hình độc lập như App Store!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NỘI DUNG CHO ANDROID -->
+                <div class="pwa-tab-pane" id="panePwaAndroid" style="display:none;">
+                    <div class="pwa-step-box">
+                        <div class="pwa-step-item">
+                            <span class="step-num">1</span>
+                            <div class="step-content">
+                                <strong>Mở bằng Google Chrome</strong>
+                                <p>Mở trang web bằng trình duyệt <strong>Chrome</strong> hoặc <strong>Cốc Cốc</strong> trên điện thoại Android.</p>
+                            </div>
+                        </div>
+                        <div class="pwa-step-item">
+                            <span class="step-num">2</span>
+                            <div class="step-content">
+                                <strong>Bấm menu dấu 3 chấm ⋮</strong>
+                                <p>Chạm vào biểu tượng <strong>dấu 3 chấm dọc ⋮</strong> ở góc trên cùng bên phải trình duyệt.</p>
+                            </div>
+                        </div>
+                        <div class="pwa-step-item">
+                            <span class="step-num">3</span>
+                            <div class="step-content">
+                                <strong>Chọn "Cài đặt ứng dụng"</strong>
+                                <p>Chọn <strong>"Cài đặt ứng dụng"</strong> (hoặc <em>"Thêm vào màn hình chính"</em>), sau đó bấm xác nhận <strong>"Cài đặt"</strong>.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NỘI DUNG CHO MÁY TÍNH -->
+                <div class="pwa-tab-pane" id="panePwaDesktop" style="display:none;">
+                    <div class="pwa-step-box">
+                        <div class="pwa-step-item">
+                            <span class="step-num">1</span>
+                            <div class="step-content">
+                                <strong>Dùng Chrome, Edge hoặc Cốc Cốc</strong>
+                                <p>Mở trang web trên trình duyệt máy tính của bạn.</p>
+                            </div>
+                        </div>
+                        <div class="pwa-step-item">
+                            <span class="step-num">2</span>
+                            <div class="step-content">
+                                <strong>Bấm biểu tượng Cài đặt 📥</strong>
+                                <p>Bấm nút <strong>"Cài đặt ứng dụng"</strong> trên thanh menu hoặc biểu tượng <strong>📥</strong> nằm ở cuối thanh nhập link (URL) của trình duyệt.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GHI CHÚ HTTPS BẮT BUỘC -->
+                <div class="pwa-ssl-note">
+                    🔒 <strong>Lưu ý quan trọng:</strong> Để cài đặt được trên điện thoại và iPad, trang web bắt buộc phải chạy qua giao thức bảo mật có tiền tố <code>https://</code> (ví dụ: GitHub Pages). Nếu mở bằng địa chỉ IP thường <code>http://192.168.x.x</code>, thiết bị sẽ tự động khóa tính năng cài đặt.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" id="btnPwaModalOk">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Nạp mã nguồn kịch bản xử lý -->
     <script src="audio-engine.js"></script>
     <script src="audio-db.js"></script>
     <script src="app.js"></script>
 
-    <!-- Đăng ký Progressive Web App (PWA) & Xử lý Cài đặt -->
+    <!-- Đăng ký Progressive Web App (PWA) & Xử lý Cài đặt Đa Nền Tảng -->
     <script>
         // Đăng ký Service Worker
         if ('serviceWorker' in navigator) {
@@ -380,17 +489,80 @@
             });
         }
 
-        // Lắng nghe sự kiện cài đặt ứng dụng từ Google Chrome / Cốc Cốc / Edge
+        // Quản lý nút Cài đặt PWA & Modal hướng dẫn cho Điện thoại / iPad / Máy tính
         let deferredPwaPrompt = null;
         const installPwaBtn = document.getElementById('btnInstallPwa');
+        const pwaInstallModal = document.getElementById('pwaInstallModal');
+        const btnPwaModalClose = document.getElementById('btnPwaModalClose');
+        const btnPwaModalOk = document.getElementById('btnPwaModalOk');
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Ngăn chặn thanh nhắc mặc định để hiển thị nút cài đặt đẹp mắt
-            e.preventDefault();
-            deferredPwaPrompt = e;
-            if (installPwaBtn) {
+        // Kiểm tra xem ứng dụng đã cài đặt và đang chạy ở chế độ Standalone chưa
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                             window.navigator.standalone === true;
+
+        if (installPwaBtn) {
+            if (isStandalone) {
+                installPwaBtn.style.display = 'none';
+            } else {
                 installPwaBtn.style.display = 'inline-flex';
             }
+        }
+
+        // Bắt sự kiện beforeinstallprompt (Dành cho Chrome Desktop & Android)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPwaPrompt = e;
+            if (installPwaBtn && !isStandalone) {
+                installPwaBtn.style.display = 'inline-flex';
+            }
+        });
+
+        // Hàm mở modal hướng dẫn với nhận diện thiết bị thông minh
+        function showPwaInstallGuide() {
+            if (!pwaInstallModal) return;
+            pwaInstallModal.classList.remove('hidden');
+
+            const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isAndroid = /Android/i.test(navigator.userAgent);
+
+            let targetTab = 'desktop';
+            if (isIos) targetTab = 'ios';
+            else if (isAndroid) targetTab = 'android';
+
+            switchPwaTab(targetTab);
+        }
+
+        function switchPwaTab(tabKey) {
+            const tabs = document.querySelectorAll('.pwa-tab-btn');
+            const panes = {
+                'ios': document.getElementById('panePwaIos'),
+                'android': document.getElementById('panePwaAndroid'),
+                'desktop': document.getElementById('panePwaDesktop')
+            };
+
+            tabs.forEach(btn => {
+                if (btn.dataset.tab === tabKey) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            Object.keys(panes).forEach(k => {
+                if (panes[k]) {
+                    panes[k].style.display = (k === tabKey) ? 'block' : 'none';
+                }
+            });
+        }
+
+        // Chuyển tab trong modal
+        document.querySelectorAll('.pwa-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.dataset.tab) {
+                    switchPwaTab(btn.dataset.tab);
+                }
+            });
         });
 
         if (installPwaBtn) {
@@ -399,19 +571,31 @@
                     deferredPwaPrompt.prompt();
                     const choiceResult = await deferredPwaPrompt.userChoice;
                     if (choiceResult.outcome === 'accepted') {
-                        console.log('Người dùng đã đồng ý cài đặt ứng dụng.');
                         installPwaBtn.style.display = 'none';
                     }
                     deferredPwaPrompt = null;
+                } else {
+                    showPwaInstallGuide();
                 }
             });
         }
+
+        function closePwaModal() {
+            if (pwaInstallModal) pwaInstallModal.classList.add('hidden');
+        }
+
+        if (btnPwaModalClose) btnPwaModalClose.addEventListener('click', closePwaModal);
+        if (btnPwaModalOk) btnPwaModalOk.addEventListener('click', closePwaModal);
+        window.addEventListener('click', (e) => {
+            if (e.target === pwaInstallModal) closePwaModal();
+        });
 
         window.addEventListener('appinstalled', () => {
             console.log('Ứng dụng đã được cài đặt thành công.');
             if (installPwaBtn) {
                 installPwaBtn.style.display = 'none';
             }
+            closePwaModal();
         });
     </script>
 </body>

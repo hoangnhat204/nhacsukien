@@ -2715,4 +2715,162 @@ input[type="range"]::-webkit-slider-thumb:hover {
     transform: translateY(0);
 }
 
+/* =========================================================
+   HỘP THOẠI HƯỚNG DẪN CÀI ĐẶT PWA (IPHONE / IPAD / ANDROID)
+   ========================================================= */
+.pwa-guide-modal-card {
+    width: 520px;
+    max-width: 94vw;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
 
+.pwa-guide-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.pwa-guide-tabs {
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    gap: 4px;
+}
+
+.pwa-tab-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.pwa-tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.pwa-tab-btn.active {
+    background: var(--accent-cyan);
+    color: #04111d;
+    box-shadow: 0 2px 8px rgba(0, 242, 254, 0.35);
+}
+
+.pwa-tab-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pwa-step-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pwa-step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    transition: border-color 0.2s ease;
+}
+
+.pwa-step-item:hover {
+    border-color: var(--border-accent);
+}
+
+.pwa-step-item .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
+    color: #04111d;
+    font-size: 12px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.pwa-step-item .step-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+}
+
+.pwa-step-item .step-content strong {
+    font-size: 12.5px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pwa-step-item .step-content p {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.pwa-step-item .share-icon-badge {
+    display: inline-block;
+    background: rgba(0, 242, 254, 0.15);
+    color: var(--accent-cyan);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.pwa-ssl-note {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.pwa-ssl-note strong {
+    color: var(--accent-gold);
+}
+
+.pwa-ssl-note code {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+}
+
+[data-theme="light"] .pwa-tab-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+[data-theme="light"] .pwa-step-item .step-num {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+}
