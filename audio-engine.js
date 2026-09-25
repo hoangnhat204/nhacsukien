@@ -69,7 +69,7 @@ class EventAudioEngine {
 
         // Master Chain: Decks -> Ducking Gain -> EQ -> Master Gain -> Analyser -> Destination
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(0.9, this.ctx.currentTime);
+        this.masterGain.gain.setValueAtTime(0.0, this.ctx.currentTime);
 
         this.duckingGain = this.ctx.createGain();
         this.duckingGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
@@ -349,6 +349,10 @@ class EventAudioEngine {
             deck.audio.currentTime = 0;
             deck.isPlaying = false;
         });
+
+        for (const padId in this.padStates) {
+            this.stopPad(padId);
+        }
 
         for (const padId in this.activePadSources) {
             const sources = this.activePadSources[padId] || [];

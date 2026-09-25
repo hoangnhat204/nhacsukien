@@ -85,7 +85,8 @@ class EventAudioDB {
                     fileName: track.fileName || (track.file ? track.file.name : 'track.mp3'),
                     duration: track.duration || '00:00',
                     blob: blobData,
-                    dateAdded: track.dateAdded || Date.now()
+                    dateAdded: track.dateAdded || Date.now(),
+                    folderId: track.folderId || null
                 };
                 const req = store.put(dataToSave);
                 req.onsuccess = () => resolve(true);
@@ -118,7 +119,8 @@ class EventAudioDB {
                         fileName: track.fileName || (track.file ? track.file.name : 'track.mp3'),
                         duration: track.duration || '00:00',
                         blob: blobData,
-                        dateAdded: track.dateAdded || Date.now()
+                        dateAdded: track.dateAdded || Date.now(),
+                        folderId: track.folderId || null
                     });
                 });
                 tx.oncomplete = () => resolve(true);
@@ -164,7 +166,8 @@ class EventAudioDB {
                             fileName: item.fileName,
                             duration: item.duration,
                             file: fileObj,
-                            dateAdded: item.dateAdded
+                            dateAdded: item.dateAdded,
+                            folderId: item.folderId || null
                         };
                     });
                     resolve(tracks);
@@ -301,3 +304,85 @@ class EventAudioDB {
 
 // Khởi tạo instance toàn cục
 window.audioDB = new EventAudioDB();
+
+/**
+ * Trình đồng bộ với Node.js Backend Server & Neon PostgreSQL (ServerSyncClient)
+ * Tự động đồng bộ bài hát, thư mục và phím hiệu ứng với máy chủ Node.js khi online
+ */
+class ServerSyncClient {
+    constructor() {
+        this.baseUrl = window.location.origin;
+        this.isServerAvailable = false;
+        this.checkServer();
+    }
+
+    async checkServer() {
+        try {
+            const res = await fetch(`${this.baseUrl}/api/status`, { signal: AbortSignal.timeout(2000) });
+            if (res.ok) {
+                const data = await res.json();
+                this.isServerAvailable = true;
+                console.log(`📡 [Node.js Server] Đã kết nối máy chủ (${data.database})`);
+                return data;
+            }
+        } catch (e) {
+            this.isServerAvailable = false;
+        }
+        return null;
+    }
+
+    async getFolders() {
+        if (!this.isServerAvailable) return null;
+        try {
+            const res = await fetch(`${this.baseUrl}/api/folders`);
+            if (res.ok) {
+                const data = await res.json();
+                return data.folders || [];
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    async saveFolder(folder) {
+        if (!this.isServerAvailable) return;
+        try {
+            await fetch(`${this.baseUrl}/api/folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(folder)
+            });
+        } catch (e) {}
+    }
+
+    async renameFolder(id, name) {
+        if (!this.isServerAvailable) return;
+        try {
+            await fetch(`${this.baseUrl}/api/folders/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+        } catch (e) {}
+    }
+
+    async deleteFolder(id) {
+        if (!this.isServerAvailable) return;
+        try {
+            await fetch(`${this.baseUrl}/api/folders/${id}`, { method: 'DELETE' });
+        } catch (e) {}
+    }
+
+    async syncAll(payload) {
+        if (!this.isServerAvailable) return;
+        try {
+            await fetch(`${this.baseUrl}/api/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (e) {}
+    }
+}
+
+window.serverSync = new ServerSyncClient();
+

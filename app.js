@@ -140,11 +140,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bàn phím hiệu ứng
     const soundboardGrid = document.getElementById('soundboardGrid');
 
-    // Danh sách bài hát đã tải lên
+    // Danh sách bài hát đã tải lên & Thư mục
     const playlistContainer = document.getElementById('playlistContainer');
     const playlistFileInput = document.getElementById('playlistFileInput');
     const musicCountBadge = document.getElementById('musicCountBadge');
     const btnClearAllTracks = document.getElementById('btnClearAllTracks');
+    const btnCreateFolder = document.getElementById('btnCreateFolder');
+    const folderNavBar = document.getElementById('folderNavBar');
+
+    // Hộp thoại tạo/đổi tên thư mục & chuyển file vào thư mục
+    const folderModal = document.getElementById('folderModal');
+    const folderModalTitle = document.getElementById('folderModalTitle');
+    const folderNameInput = document.getElementById('folderNameInput');
+    const btnFolderModalClose = document.getElementById('btnFolderModalClose');
+    const btnFolderModalCancel = document.getElementById('btnFolderModalCancel');
+    const btnFolderModalSave = document.getElementById('btnFolderModalSave');
+
+    const moveFileModal = document.getElementById('moveFileModal');
+    const moveFileSubtitle = document.getElementById('moveFileSubtitle');
+    const moveFileTargetList = document.getElementById('moveFileTargetList');
+    const btnMoveFileModalClose = document.getElementById('btnMoveFileModalClose');
+    const btnMoveFileModalCancel = document.getElementById('btnMoveFileModalCancel');
 
     // Hộp thoại cấu hình ô hiệu ứng
     const padConfigModal = document.getElementById('padConfigModal');
@@ -474,6 +490,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateCentralController() {
         if (!soundboardCentralCtrl) return;
 
+        // Nếu có ô đang phát nhưng currentActivePadId không phát hoặc trống -> tự động khóa focus vào ô đang phát
+        const activePlayingPadId = Object.keys(padData).find(pid => engine.isPadPlaying(pid));
+        if (activePlayingPadId && (!currentActivePadId || !engine.isPadPlaying(currentActivePadId))) {
+            currentActivePadId = activePlayingPadId;
+        }
+
         // Đánh dấu viền ô phím đang chọn trên lưới
         document.querySelectorAll('.fx-pad').forEach(p => {
             p.classList.toggle('pad-selected', p.dataset.pad === currentActivePadId);
@@ -578,10 +600,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2200);
     }
 
+    // Chuyển đổi định dạng chuỗi hoặc số thành giây
+    function parseDurationToSeconds(dur) {
+        if (!dur || dur === '--') return 0;
+        if (typeof dur === 'number') return dur;
+        const str = String(dur).trim();
+        if (str.includes(':')) {
+            const parts = str.split(':').map(Number);
+            if (parts.length === 2) {
+                return (parts[0] || 0) * 60 + (parts[1] || 0);
+            } else if (parts.length === 3) {
+                return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+            }
+        }
+        const num = parseFloat(str.replace('s', ''));
+        return isNaN(num) ? 0 : num;
+    }
+
     // Định dạng thời lượng pad hiển thị gọn gàng (nếu > 60s thì đổi thành mm:ss)
     function formatPadDurationDisplay(dur) {
         if (!dur || dur === '--') return '--';
         const str = String(dur).trim();
+        if (str.includes(':')) return str;
         const num = parseFloat(str.replace('s', ''));
         if (isNaN(num)) return str;
         if (num >= 60) {
@@ -590,6 +630,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${m}:${String(s).padStart(2, '0')}`;
         }
         return `${num.toFixed(1)}s`;
+    }
+
+    // Định dạng đếm ngược thời lượng còn lại của file nhạc (Remaining time countdown)
+    function formatPadCountdown(remSec, totalSec = 0) {
+        const rem = Math.max(0, Number(remSec) || 0);
+        const total = typeof totalSec === 'number' ? totalSec : parseDurationToSeconds(totalSec);
+
+        // Nếu file nhạc có độ dài >= 60s hoặc còn lại >= 60s thì hiển thị m:ss (đếm lùi)
+        if (total >= 60 || rem >= 60) {
+            const m = Math.floor(rem / 60);
+            const s = Math.floor(rem % 60);
+            return `${m}:${String(s).padStart(2, '0')}`;
+        }
+        // Hiệu ứng âm thanh ngắn (< 60s) hiển thị số giây lẻ 0.0s
+        return `${rem.toFixed(1)}s`;
     }
 
     // Gán file âm thanh từ bài hát đã tải lên (hoặc kéo thả) vào một phím hiệu ứng
@@ -642,10 +697,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const groupClass = getPadGroupClass(data);
             const hasFile = data.isCustom && data.fileName;
             const durDisplay = hasFile ? formatPadDurationDisplay(data.duration) : '--';
+            let currentDur = durDisplay;
+            let initialBarWidth = '0%';
+            let extraClass = '';
+            if (hasFile && engine && engine.soundboardBuffers[padId]) {
+                const buffer = engine.soundboardBuffers[padId];
+                const state = engine.getPadState(padId);
+                if (state.isPlaying && buffer.duration > 0) {
+                    extraClass = ' pad-active';
+                    const elapsed = Math.max(0, engine.ctx.currentTime - state.startTime);
+                    const position = elapsed % buffer.duration;
+                    const remaining = Math.max(0, buffer.duration - position);
+                    currentDur = formatPadCountdown(remaining, buffer.duration);
+                    initialBarWidth = `${(position / buffer.duration) * 100}%`;
+                } else if (state.isPaused && buffer.duration > 0) {
+                    extraClass = ' pad-paused';
+                    const rem = Math.max(0, buffer.duration - (state.pauseOffset || 0));
+                    currentDur = formatPadCountdown(rem, buffer.duration);
+                    initialBarWidth = `${((state.pauseOffset || 0) / buffer.duration) * 100}%`;
+                }
+            }
 
             const isSelected = padId === currentActivePadId;
             const padEl = document.createElement('div');
-            padEl.className = `fx-pad ${groupClass} ${isSelected ? 'pad-selected' : ''}`;
+            padEl.className = `fx-pad ${groupClass} ${isSelected ? 'pad-selected' : ''}${extraClass}`;
             padEl.dataset.pad = padId;
             padEl.dataset.key = (data.key || '').toUpperCase();
             padEl.title = hasFile 
@@ -657,9 +732,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="pad-body">
                     <div class="pad-title-row">
                         <span class="pad-name" title="${escapeHtml(data.name)}">${escapeHtml(data.name || 'Phím')}</span>
-                        <span class="pad-duration" style="${!hasFile ? 'opacity: 0.5;' : ''}">${durDisplay}</span>
+                        <span class="pad-duration" style="${!hasFile ? 'opacity: 0.5;' : ''}">${currentDur}</span>
                     </div>
-                    <div class="pad-progress-track" title="Bấm hoặc kéo để chọn đoạn phát"><div class="pad-progress-bar"></div></div>
+                    <div class="pad-progress-track" title="Bấm hoặc kéo để chọn đoạn phát"><div class="pad-progress-bar" style="width: ${initialBarWidth}"></div></div>
                 </div>
                 <button type="button" class="btn-pad-gear" data-pad="${padId}" title="Cài đặt ô này">⚙</button>
             `;
@@ -722,6 +797,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progressBar) {
                 progressBar.style.transition = 'none';
                 progressBar.style.width = '0%';
+            }
+
+            const durLabel = padEl.querySelector('.pad-duration');
+            if (durLabel && padData[padId]) {
+                durLabel.textContent = formatPadDurationDisplay(padData[padId].duration);
             }
         }
 
@@ -788,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         if (durLabel) {
-            durLabel.textContent = formatPadDurationDisplay(totalDuration);
+            durLabel.textContent = formatPadCountdown(remainingDur, totalDuration);
         }
 
         // Start at the actual audio position; the frame loop follows the audio clock.
@@ -822,6 +902,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const computedWidth = window.getComputedStyle(progressBar).width;
                 progressBar.style.transition = 'none';
                 progressBar.style.width = computedWidth;
+            }
+
+            const durLabel = padEl.querySelector('.pad-duration');
+            const state = engine.getPadState(padId);
+            const buffer = engine.soundboardBuffers[padId];
+            if (durLabel && buffer) {
+                const rem = Math.max(0, buffer.duration - (state.pauseOffset || 0));
+                durLabel.textContent = formatPadCountdown(rem, buffer.duration);
             }
         }
 
@@ -902,11 +990,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!state.isPlaying || !buffer || buffer.duration <= 0 || state.fadeTimeout ||
                 (padSeekGesture && padSeekGesture.padId === padId)) return;
             const bar = pad.querySelector('.pad-progress-bar');
-            if (!bar) return;
+            const durLabel = pad.querySelector('.pad-duration');
             const elapsed = Math.max(0, engine.ctx.currentTime - state.startTime);
             const position = elapsed % buffer.duration;
-            bar.style.transition = 'none';
-            bar.style.width = `${position / buffer.duration * 100}%`;
+            const remaining = Math.max(0, buffer.duration - position);
+
+            if (bar) {
+                bar.style.transition = 'none';
+                bar.style.width = `${position / buffer.duration * 100}%`;
+            }
+            if (durLabel) {
+                durLabel.textContent = formatPadCountdown(remaining, buffer.duration);
+            }
         });
     }
     requestAnimationFrame(updatePadProgress);
@@ -918,6 +1013,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const bar = padSeekGesture.track.querySelector('.pad-progress-bar');
         bar.style.transition = 'none';
         bar.style.width = `${ratio * 100}%`;
+
+        const pad = padSeekGesture.track.closest('.fx-pad');
+        const durLabel = pad ? pad.querySelector('.pad-duration') : null;
+        const rem = Math.max(0, padSeekGesture.duration - padSeekGesture.seconds);
+        if (durLabel) {
+            durLabel.textContent = formatPadCountdown(rem, padSeekGesture.duration);
+        }
+
         padSeekGesture.track.title = `Phát từ ${formatPadDurationDisplay(padSeekGesture.seconds)} / ${formatPadDurationDisplay(padSeekGesture.duration)}`;
     }
     soundboardGrid.addEventListener('pointerdown', (event) => {
@@ -927,18 +1030,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const buffer = engine.soundboardBuffers[padId];
         if (!buffer) return;
         event.preventDefault();
-        padSeekGesture = { track, padId, duration: buffer.duration, pointerId: event.pointerId, seconds: 0 };
+        padSeekGesture = {
+            track,
+            padId,
+            duration: buffer.duration,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            hasDragged: false,
+            seconds: 0
+        };
         track.setPointerCapture(event.pointerId);
-        previewPadSeek(event);
     });
-    soundboardGrid.addEventListener('pointermove', previewPadSeek);
+    soundboardGrid.addEventListener('pointermove', (event) => {
+        if (!padSeekGesture || event.pointerId !== padSeekGesture.pointerId) return;
+        const dist = Math.abs(event.clientX - padSeekGesture.startX);
+        if (dist > 4) {
+            padSeekGesture.hasDragged = true;
+            previewPadSeek(event);
+        }
+    });
     soundboardGrid.addEventListener('pointerup', (event) => {
         if (!padSeekGesture || event.pointerId !== padSeekGesture.pointerId) return;
-        previewPadSeek(event);
         const gesture = padSeekGesture;
         padSeekGesture = null;
         gesture.track.releasePointerCapture(event.pointerId);
-        triggerPad(gesture.padId, false, gesture.seconds);
+
+        if (gesture.hasDragged) {
+            // Kéo chuột/tay trên thanh tiến trình -> Tua đến đoạn được kéo tới và phát
+            triggerPad(gesture.padId, false, gesture.seconds);
+        } else {
+            // Bấm/chạm vào phím -> Luôn phát lại từ đầu (0:00)
+            triggerPad(gesture.padId, true);
+        }
     });
     soundboardGrid.addEventListener('pointercancel', () => {
         if (!padSeekGesture) return;
@@ -973,14 +1096,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const padEl = e.target.closest('.fx-pad');
         if (padEl) {
             const padId = padEl.dataset.pad;
-            currentActivePadId = padId;
-            if (engine.isPadPaused(padId)) {
-                // Đang tạm dừng -> bấm vào thân ô phím sẽ phát tiếp (Resume)
-                triggerPad(padId, false);
-            } else {
-                // Chưa phát hoặc đang phát -> bấm vào thân ô phím sẽ phát từ đầu (Play from start)
-                triggerPad(padId, true);
+            const data = padData[padId];
+            const hasAudio = data && data.isCustom && data.fileName && engine.soundboardBuffers[padId];
+
+            if (!hasAudio) {
+                // Nếu bấm vào ô chưa có file: mở cài đặt ô này, không làm kẹt ô đang phát
+                const isAnyPlaying = Object.keys(padData).some(pid => engine.isPadPlaying(pid));
+                if (!isAnyPlaying) {
+                    currentActivePadId = padId;
+                    updateCentralController();
+                }
+                openPadConfigModal(padId);
+                return;
             }
+
+            currentActivePadId = padId;
+            // Bấm vào phím -> Luôn phát lại từ đầu (Play from start)
+            triggerPad(padId, true);
             updateCentralController();
         }
     });
@@ -988,41 +1120,69 @@ document.addEventListener('DOMContentLoaded', () => {
     // SỰ KIỆN NÚT BẢNG ĐIỀU KHIỂN TRUNG TÂM (Ở GIỮA)
     if (btnCentralPlay) {
         btnCentralPlay.addEventListener('click', () => {
-            if (!currentActivePadId) {
-                const firstWithAudio = Object.keys(padData).find(pid => padData[pid].isCustom && padData[pid].fileName);
-                if (firstWithAudio) {
-                    currentActivePadId = firstWithAudio;
-                } else {
-                    showToast('⚠️ Vui lòng chọn một ô phím có âm thanh để phát!');
-                    return;
-                }
+            // 1. Nếu có bất kỳ ô nào đang phát -> ưu tiên tạm dừng ô đang phát đó ngay lập tức!
+            const activePlayingPadId = Object.keys(padData).find(pid => engine.isPadPlaying(pid));
+            if (activePlayingPadId) {
+                currentActivePadId = activePlayingPadId;
+                pausePad(activePlayingPadId);
+                updateCentralController();
+                return;
             }
 
-            if (engine.isPadPlaying(currentActivePadId)) {
-                pausePad(currentActivePadId);
-            } else {
+            // 2. Nếu ô hiện tại có file âm thanh và đang tạm dừng -> tiếp tục phát
+            if (currentActivePadId && engine.isPadPaused(currentActivePadId)) {
                 triggerPad(currentActivePadId, false);
+                return;
             }
+
+            // 3. Nếu ô hiện tại có file âm thanh -> phát
+            if (currentActivePadId && padData[currentActivePadId]?.isCustom && padData[currentActivePadId]?.fileName && engine.soundboardBuffers[currentActivePadId]) {
+                triggerPad(currentActivePadId, false);
+                return;
+            }
+
+            // 4. Nếu ô hiện tại là ô trống (không có nhạc), tìm ô đang tạm dừng trước đó hoặc ô có nhạc đầu tiên
+            const pausedPadId = Object.keys(padData).find(pid => engine.isPadPaused(pid));
+            if (pausedPadId) {
+                currentActivePadId = pausedPadId;
+                triggerPad(pausedPadId, false);
+                updateCentralController();
+                return;
+            }
+
+            const firstWithAudio = Object.keys(padData).find(pid => padData[pid].isCustom && padData[pid].fileName && engine.soundboardBuffers[pid]);
+            if (firstWithAudio) {
+                currentActivePadId = firstWithAudio;
+                triggerPad(firstWithAudio, false);
+                updateCentralController();
+                return;
+            }
+
+            showToast('⚠️ Vui lòng nạp file âm thanh cho ô phím trước khi phát!');
         });
     }
 
     if (btnCentralLoop) {
         btnCentralLoop.addEventListener('click', () => {
-            if (!currentActivePadId) {
-                showToast('⚠️ Vui lòng chọn một ô phím trước!');
+            const targetPadId = Object.keys(padData).find(pid => engine.isPadPlaying(pid)) || currentActivePadId;
+            if (!targetPadId || !padData[targetPadId]?.fileName) {
+                showToast('⚠️ Vui lòng chọn một ô phím có âm thanh trước!');
                 return;
             }
-            togglePadLoop(currentActivePadId);
+            currentActivePadId = targetPadId;
+            togglePadLoop(targetPadId);
         });
     }
 
     if (btnCentralFade) {
         btnCentralFade.addEventListener('click', () => {
-            if (!currentActivePadId) {
-                showToast('⚠️ Vui lòng chọn một ô phím đang phát!');
+            const padToFade = Object.keys(padData).find(pid => engine.isPadPlaying(pid)) || currentActivePadId;
+            if (!padToFade || !engine.isPadPlaying(padToFade)) {
+                showToast('⚠️ Không có âm thanh nào đang phát để giảm âm lượng!');
                 return;
             }
-            fadePadQuick(currentActivePadId, 3.0);
+            currentActivePadId = padToFade;
+            fadePadQuick(padToFade, 3.0);
         });
     }
 
@@ -1520,21 +1680,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlaylistPlayingUI() {
         if (!playlistContainer) return;
-        const allCards = playlistContainer.querySelectorAll('.track-card-uploaded');
+        const allCards = playlistContainer.querySelectorAll('.track-file-item, .track-card-uploaded');
         allCards.forEach(card => {
             const tid = card.dataset.trackId;
-            const playBtn = card.querySelector('.btn-card-play');
+            const playBtn = card.querySelector('.btn-file-act.play, .btn-card-play');
+            const iconEl = card.querySelector('.track-file-icon');
             if (tid === currentPlayingTrackId) {
                 card.classList.add('playing-item');
+                if (iconEl) iconEl.textContent = bgDeck.isPlaying ? '🔊' : '🎵';
                 if (playBtn) {
                     playBtn.classList.toggle('playing', bgDeck.isPlaying);
-                    playBtn.innerHTML = bgDeck.isPlaying ? '⏸ Tạm dừng' : '▶ Tiếp tục';
+                    playBtn.innerHTML = bgDeck.isPlaying ? '⏸' : '▶';
+                    playBtn.title = bgDeck.isPlaying ? 'Tạm dừng bài này' : 'Phát tiếp';
                 }
             } else {
                 card.classList.remove('playing-item');
+                if (iconEl) iconEl.textContent = '🎵';
                 if (playBtn) {
                     playBtn.classList.remove('playing');
-                    playBtn.innerHTML = '▶ Phát';
+                    playBtn.innerHTML = '▶';
+                    playBtn.title = 'Phát bài này';
                 }
             }
         });
@@ -1621,13 +1786,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Điều chỉnh âm lượng tổng (Master Volume) theo bước 1 đơn vị số (1%)
+    function changeMasterVolumeBy(delta) {
+        if (!masterVolumeSlider) return;
+        let cur = parseInt(masterVolumeSlider.value, 10);
+        if (isNaN(cur)) cur = 0;
+        let next = Math.max(0, Math.min(100, cur + delta));
+        masterVolumeSlider.value = next;
+        engine.setMasterVolume(next / 100);
+        if (masterVolVal) masterVolVal.textContent = `${next}%`;
+        showToast(next === 0 ? '🔇 Âm lượng tổng: Đã tắt tiếng (0%)' : `🔊 Âm lượng tổng: ${next}%`);
+    }
+
     // Master Volume trên đỉnh (Header)
     if (masterVolumeSlider) {
         masterVolumeSlider.addEventListener('input', () => {
-            const val = parseFloat(masterVolumeSlider.value);
-            engine.setMasterVolume(val);
-            if (masterVolVal) masterVolVal.textContent = `${Math.round((val / 1.2) * 100)}%`;
+            const val = parseInt(masterVolumeSlider.value, 10) || 0;
+            engine.setMasterVolume(val / 100);
+            if (masterVolVal) masterVolVal.textContent = `${val}%`;
         });
+        // Mặc định âm lượng lúc đầu là 0%
+        engine.setMasterVolume(0);
+        if (masterVolVal) masterVolVal.textContent = '0%';
     }
 
     // =========================================================
@@ -1643,8 +1823,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         for (const padId in padData) {
+            if (engine && engine.stopPad) {
+                engine.stopPad(padId);
+            }
             stopPadAnimation(padId);
         }
+
+        // Đóng toàn bộ các modal đang mở nếu có
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.classList.add('hidden');
+        });
 
         if (playerTrackStatus) {
             playerTrackStatus.textContent = 'Đã ngắt toàn bộ âm thanh khẩn cấp';
@@ -1653,6 +1841,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playlistPlayIcon) playlistPlayIcon.textContent = '▶';
         if (playlistPlayText) playlistPlayText.textContent = 'PHÁT';
         updatePlaylistPlayingUI();
+        updateCentralController();
+
+        showToast('🚨 ĐÃ DỪNG KHẨN CẤP TOÀN BỘ ÂM THANH!');
 
         document.body.style.boxShadow = 'inset 0 0 80px rgba(239, 68, 68, 0.7)';
         setTimeout(() => {
@@ -1664,6 +1855,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 8. LẮNG NGHE PHÍM TẮT TRÊN BÀN PHÍM
     // =========================================================
     window.addEventListener('keydown', (e) => {
+        // 1. Phím ESC = Dừng khẩn cấp toàn hệ thống (hoạt động mọi lúc mọi nơi, kể cả khi đang mở modal)
+        if (e.key === 'Escape' || e.code === 'Escape') {
+            e.preventDefault();
+            triggerPanicStop();
+            return;
+        }
+
         // Thanh trượt vẫn nhận phím phát nhạc; ô nhập liệu giữ phím để gõ.
         const target = e.target;
         if ((target.tagName === 'INPUT' && target.type !== 'range') ||
@@ -1671,26 +1869,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const key = e.key.toUpperCase();
-
-        // 1. Phím ESC = Dừng khẩn cấp
-        if (e.key === 'Escape') {
+        // 2. Phím Space (Dấu cách) = Phát / Tạm dừng ô phím đang chọn (Central Controller)
+        if (e.code === 'Space') {
             e.preventDefault();
-            triggerPanicStop();
+            if (e.repeat) return;
+            if (btnCentralPlay) {
+                btnCentralPlay.click();
+            }
             return;
         }
 
-        // 3. Shift + Space = Bật / Tạm dừng phát nhạc nền kịch bản
-        if (e.shiftKey && e.code === 'Space') {
+        // 4. Phím mũi tên Trái (ArrowLeft) / Phải (ArrowRight) = Tăng / Giảm Âm lượng tổng theo bước 1 đơn vị số
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
             e.preventDefault();
-            if (e.repeat) return;
-            if (bgDeck.isPlaying) {
-                engine.pauseDeck('A');
-            } else if (bgDeck.audio.src) {
-                engine.playDeck('A');
-            } else if (playlistTracks.length > 0) {
-                playTrackById(playlistTracks[0].id);
-            }
+            changeMasterVolumeBy(-1);
+            return;
+        }
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            changeMasterVolumeBy(1);
             return;
         }
 
@@ -1699,6 +1896,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (padData[padId].key && padData[padId].key.toUpperCase() === key) {
                 e.preventDefault();
                 if (e.repeat) return;
+                const data = padData[padId];
+                if (!data.isCustom || !data.fileName || !engine.soundboardBuffers[padId]) {
+                    showToast(`⚠️ Phím ${data.key} (${data.name}) chưa có file âm thanh!`);
+                    return;
+                }
                 triggerPad(padId, !engine.isPadPaused(padId));
                 return;
             }
@@ -1707,100 +1909,382 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // =========================================================
-    // 9. DANH SÁCH TẤT CẢ FILE NHẠC ĐÃ TẢI LÊN
+    // 9. QUẢN LÝ THƯ MỤC & DANH SÁCH FILE NHẠC ĐÃ TẢI LÊN
     // =========================================================
-    function renderPlaylist() {
-        if (!playlistContainer) return;
-        playlistContainer.innerHTML = '';
-        if (musicCountBadge) musicCountBadge.textContent = `${playlistTracks.length} bài`;
+    let playlistFolders = []; // [{ id, name, createdAt }]
+    let activeFolderId = 'all'; // 'all' | 'unassigned' | folderId
+    let movingTrackId = null;
+    let editingFolderId = null;
 
-        if (playlistTracks.length === 0) {
-            playlistContainer.innerHTML = `
-                <div class="upload-dropzone-empty">
-                    <span class="dropzone-icon">📥</span>
-                    <div class="dropzone-text">
-                        <strong>Chưa có bài hát nào được tải lên</strong>
-                        <span>Bấm nút <strong>"➕ TẢI LÊN FILE NHẠC TỪ MÁY TÍNH"</strong> ở trên để nạp ngay các bài nhạc MP3/WAV của bạn.</span>
-                    </div>
-                </div>
-            `;
+    // Khôi phục danh sách thư mục từ LocalStorage
+    try {
+        const savedFolders = localStorage.getItem('event_audio_folders');
+        if (savedFolders) {
+            playlistFolders = JSON.parse(savedFolders);
+            if (!Array.isArray(playlistFolders)) playlistFolders = [];
+        }
+    } catch (e) {
+        playlistFolders = [];
+    }
+
+    function saveFolders() {
+        try {
+            localStorage.setItem('event_audio_folders', JSON.stringify(playlistFolders));
+        } catch (e) {}
+    }
+
+    function openCreateFolderModal() {
+        editingFolderId = null;
+        if (folderModalTitle) folderModalTitle.textContent = '📁 Tạo Thư Mục Mới';
+        if (folderNameInput) folderNameInput.value = '';
+        if (folderModal) folderModal.classList.remove('hidden');
+        setTimeout(() => { if (folderNameInput) folderNameInput.focus(); }, 80);
+    }
+
+    function openRenameFolderModal(folderId) {
+        const f = playlistFolders.find(x => x.id === folderId);
+        if (!f) return;
+        editingFolderId = folderId;
+        if (folderModalTitle) folderModalTitle.textContent = '✏️ Đổi Tên Thư Mục';
+        if (folderNameInput) folderNameInput.value = f.name;
+        if (folderModal) folderModal.classList.remove('hidden');
+        setTimeout(() => { if (folderNameInput) folderNameInput.focus(); }, 80);
+    }
+
+    function saveFolderFromModal() {
+        if (!folderNameInput) return;
+        const name = folderNameInput.value.trim();
+        if (!name) {
+            showToast('⚠️ Vui lòng nhập tên thư mục!');
             return;
         }
 
-        playlistTracks.forEach((track, index) => {
+        if (editingFolderId) {
+            const f = playlistFolders.find(x => x.id === editingFolderId);
+            if (f) {
+                f.name = name;
+                saveFolders();
+                if (window.serverSync) window.serverSync.renameFolder(f.id, name);
+                showToast(`✅ Đã đổi tên thư mục thành "${name}"!`);
+            }
+        } else {
+            const newFolder = {
+                id: `folder-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                name: name,
+                createdAt: Date.now()
+            };
+            playlistFolders.push(newFolder);
+            saveFolders();
+            if (window.serverSync) window.serverSync.saveFolder(newFolder);
+            activeFolderId = newFolder.id;
+            showToast(`📁 Đã tạo thư mục "${name}"!`);
+        }
+
+        if (folderModal) folderModal.classList.add('hidden');
+        renderPlaylist();
+    }
+
+    function deleteFolder(folderId) {
+        const f = playlistFolders.find(x => x.id === folderId);
+        if (!f) return;
+        if (!confirm(`Bạn có chắc muốn xóa thư mục "${f.name}"?\n(Các file nhạc bên trong sẽ được giữ nguyên và chuyển về Chưa phân loại)`)) return;
+
+        playlistTracks.forEach(t => {
+            if (t.folderId === folderId) {
+                t.folderId = null;
+                if (window.audioDB) window.audioDB.saveTrack(t);
+            }
+        });
+
+        playlistFolders = playlistFolders.filter(x => x.id !== folderId);
+        saveFolders();
+        if (window.serverSync) window.serverSync.deleteFolder(folderId);
+        if (activeFolderId === folderId) {
+            activeFolderId = 'all';
+        }
+        showToast(`🗑 Đã xóa thư mục "${f.name}"!`);
+        renderPlaylist();
+    }
+
+    async function moveTrackToFolder(trackId, targetFolderId) {
+        const track = playlistTracks.find(t => t.id === trackId);
+        if (!track) return;
+        track.folderId = targetFolderId || null;
+        if (window.audioDB) {
+            await window.audioDB.saveTrack(track);
+        }
+        const targetName = targetFolderId 
+            ? (playlistFolders.find(f => f.id === targetFolderId)?.name || 'thư mục') 
+            : 'Chưa phân loại';
+        showToast(`📁 Đã chuyển "${track.title}" vào thư mục "${targetName}"!`);
+        renderPlaylist();
+    }
+
+    function openMoveFileModal(trackId) {
+        const track = playlistTracks.find(t => t.id === trackId);
+        if (!track || !moveFileModal || !moveFileTargetList) return;
+        movingTrackId = trackId;
+        if (moveFileSubtitle) moveFileSubtitle.textContent = `Chọn thư mục để chuyển file "${track.title}":`;
+        moveFileTargetList.innerHTML = '';
+
+        // 1. Mục Thư mục gốc / Chưa phân loại
+        const btnRoot = document.createElement('button');
+        btnRoot.type = 'button';
+        btnRoot.className = `btn-move-target ${!track.folderId ? 'current' : ''}`;
+        btnRoot.innerHTML = `<span>📂 Chưa phân loại (Thư mục gốc)</span>${!track.folderId ? '<span>✓ Đang ở đây</span>' : ''}`;
+        btnRoot.addEventListener('click', () => {
+            moveTrackToFolder(trackId, null);
+            moveFileModal.classList.add('hidden');
+        });
+        moveFileTargetList.appendChild(btnRoot);
+
+        // 2. Danh sách các thư mục hiện có
+        playlistFolders.forEach(folder => {
+            const isCurrent = track.folderId === folder.id;
+            const count = playlistTracks.filter(t => t.folderId === folder.id).length;
+            const btnFolder = document.createElement('button');
+            btnFolder.type = 'button';
+            btnFolder.className = `btn-move-target ${isCurrent ? 'current' : ''}`;
+            btnFolder.innerHTML = `<span>📁 ${escapeHtml(folder.name)} (${count} bài)</span>${isCurrent ? '<span>✓ Đang ở đây</span>' : ''}`;
+            btnFolder.addEventListener('click', () => {
+                moveTrackToFolder(trackId, folder.id);
+                moveFileModal.classList.add('hidden');
+            });
+            moveFileTargetList.appendChild(btnFolder);
+        });
+
+        // 3. Nút Tạo thư mục mới ngay tại đây
+        const btnNew = document.createElement('button');
+        btnNew.type = 'button';
+        btnNew.className = 'btn-move-target btn-move-target-new';
+        btnNew.innerHTML = '<span>➕ Tạo thư mục mới...</span>';
+        btnNew.addEventListener('click', () => {
+            moveFileModal.classList.add('hidden');
+            openCreateFolderModal();
+        });
+        moveFileTargetList.appendChild(btnNew);
+
+        moveFileModal.classList.remove('hidden');
+    }
+
+    function setupFolderDropTarget(element, targetFolderId) {
+        element.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            element.classList.add('folder-drop-hover');
+        });
+
+        element.addEventListener('dragleave', (e) => {
+            if (!element.contains(e.relatedTarget)) {
+                element.classList.remove('folder-drop-hover');
+            }
+        });
+
+        element.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            element.classList.remove('folder-drop-hover');
+
+            // 1. Thả từ bài hát trong danh sách vào thư mục
+            const trackId = e.dataTransfer.getData('text/plain');
+            if (trackId && playlistTracks.some(t => t.id === trackId)) {
+                await moveTrackToFolder(trackId, targetFolderId);
+                return;
+            }
+
+            // 2. Thả file âm thanh trực tiếp từ máy tính vào thư mục này
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const audioFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i));
+                if (audioFiles.length > 0) {
+                    await addAudioFilesToPlaylist(audioFiles, targetFolderId);
+                }
+            }
+        });
+    }
+
+    function renderFolderNav() {
+        if (!folderNavBar) return;
+        folderNavBar.innerHTML = '';
+
+        // Các tab thư mục người dùng đã tạo
+        playlistFolders.forEach(folder => {
+            const count = playlistTracks.filter(t => t.folderId === folder.id).length;
+            const tab = document.createElement('div');
+            tab.className = `folder-tab ${activeFolderId === folder.id ? 'active' : ''}`;
+            tab.innerHTML = `
+                <span class="folder-tab-title">📁 ${escapeHtml(folder.name)}</span>
+                <span class="folder-tab-badge">${count}</span>
+                <span class="folder-tab-actions">
+                    <button type="button" class="btn-tab-mini edit" title="Đổi tên thư mục">✏️</button>
+                    <button type="button" class="btn-tab-mini del" title="Xóa thư mục">🗑</button>
+                </span>
+            `;
+
+            tab.addEventListener('click', (e) => {
+                if (e.target.closest('.folder-tab-actions')) return;
+                activeFolderId = folder.id;
+                renderPlaylist();
+            });
+
+            tab.querySelector('.btn-tab-mini.edit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openRenameFolderModal(folder.id);
+            });
+
+            tab.querySelector('.btn-tab-mini.del').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteFolder(folder.id);
+            });
+
+            setupFolderDropTarget(tab, folder.id);
+            folderNavBar.appendChild(tab);
+        });
+
+        // Tab "Chưa phân loại" (chỉ hiện khi có bài hát chưa gán và có ít nhất 1 thư mục)
+        const unassignedCount = playlistTracks.filter(t => !t.folderId).length;
+        if (playlistFolders.length > 0 && unassignedCount > 0) {
+            const unassignedTab = document.createElement('button');
+            unassignedTab.type = 'button';
+            unassignedTab.className = `folder-tab ${activeFolderId === 'unassigned' ? 'active' : ''}`;
+            unassignedTab.innerHTML = `
+                <span>📁 Chưa phân loại</span>
+                <span class="folder-tab-badge">${unassignedCount}</span>
+            `;
+            unassignedTab.addEventListener('click', () => {
+                activeFolderId = 'unassigned';
+                renderPlaylist();
+            });
+            setupFolderDropTarget(unassignedTab, null);
+            folderNavBar.appendChild(unassignedTab);
+        }
+
+    }
+
+    function renderPlaylist() {
+        if (!playlistContainer) return;
+        playlistContainer.innerHTML = '';
+
+        renderFolderNav();
+
+        if (musicCountBadge) musicCountBadge.textContent = `${playlistTracks.length} bài`;
+
+        // Lọc danh sách bài theo activeFolderId
+        let displayTracks = playlistTracks;
+        let currentFolder = null;
+
+        if (activeFolderId === 'unassigned') {
+            displayTracks = playlistTracks.filter(t => !t.folderId);
+        } else if (activeFolderId !== 'all') {
+            currentFolder = playlistFolders.find(f => f.id === activeFolderId);
+            if (currentFolder) {
+                displayTracks = playlistTracks.filter(t => t.folderId === currentFolder.id);
+            } else {
+                activeFolderId = 'all';
+                displayTracks = playlistTracks;
+            }
+        }
+
+        // Nếu không có bài hát nào trong chế độ xem này
+        if (displayTracks.length === 0) {
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'upload-dropzone-empty';
+            emptyEl.innerHTML = `
+                <span class="dropzone-icon">${currentFolder ? '📁' : '📥'}</span>
+                <div class="dropzone-text">
+                    <strong>${currentFolder ? `Thư mục "${escapeHtml(currentFolder.name)}" chưa có bài hát nào` : 'Chưa có bài hát nào được tải lên'}</strong>
+                    <span>${currentFolder 
+                        ? 'Kéo các file nhạc thả vào đây hoặc bấm nút <strong>"➕ TẢI LÊN FILE NHẠC TỪ MÁY TÍNH"</strong> để nạp thẳng vào thư mục này.' 
+                        : 'Bấm nút <strong>"➕ TẢI LÊN FILE NHẠC TỪ MÁY TÍNH"</strong> ở trên để nạp ngay các bài nhạc MP3/WAV của bạn.'}</span>
+                </div>
+            `;
+            playlistContainer.appendChild(emptyEl);
+            return;
+        }
+
+        // 3. Hiển thị danh sách file: "CHỈ CẦN HIỆN FILE VÀ TÊN FILE"
+        displayTracks.forEach((track) => {
             const card = document.createElement('div');
-            card.className = 'track-card-uploaded';
+            card.className = 'track-file-item';
             card.dataset.trackId = track.id;
             card.setAttribute('draggable', 'true');
-            card.title = `👉 Kéo bài "${track.title}" thả lên bất kỳ ô phím nào ở trên để gán phím tắt!`;
+            card.title = `🎵 ${track.title}\n👉 Bấm để phát trực tiếp\n👉 Kéo thả vào phím ở trên để gán phím tắt\n👉 Kéo thả vào thư mục để phân loại`;
 
+            const isThisPlaying = track.id === currentPlayingTrackId && bgDeck.isPlaying;
             if (track.id === currentPlayingTrackId) {
                 card.classList.add('playing-item');
             }
 
-            const isThisPlaying = track.id === currentPlayingTrackId && bgDeck.isPlaying;
-
             card.innerHTML = `
-                <span class="drag-handle-hint" title="Bấm giữ và kéo thả vào phím ở trên">⋮⋮</span>
-                <span class="track-index-num">${index + 1}</span>
-                <div class="track-details-col">
-                    <span class="track-filename-title" title="${escapeHtml(track.title)}">🎵 ${escapeHtml(track.title)}</span>
-                    <span class="track-duration-label">${track.duration || '00:00'}</span>
-                </div>
-                <div class="track-btns-cluster">
-                    <button type="button" class="btn-card-play ${isThisPlaying ? 'playing' : ''}" title="Bấm để phát hoặc tạm dừng bài này">
-                        ${isThisPlaying ? '⏸ Tạm dừng' : '▶ Phát'}
-                    </button>
-                    <button type="button" class="btn-card-del" title="Xóa file này">🗑</button>
+                <span class="track-file-icon">${isThisPlaying ? '🔊' : '🎵'}</span>
+                <span class="track-file-name" title="${escapeHtml(track.title)}">${escapeHtml(track.title)}</span>
+                <div class="track-file-actions">
+                    <button type="button" class="btn-file-act folder" title="Bỏ vào thư mục...">📁</button>
+                    <button type="button" class="btn-file-act del" title="Xóa file này">🗑</button>
                 </div>
             `;
 
-            // KÍCH HOẠT KÉO THẢ TỪ THẺ BÀI HÁT
+            // KÉO THẢ TỪ THẺ FILE (HỖ TRỢ THẢ LÊN PHÍM HOẶC THẢ VÀO THƯ MỤC)
             card.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', track.id);
-                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.effectAllowed = 'copyMove';
                 card.classList.add('dragging-card');
             });
 
             card.addEventListener('dragend', () => {
                 card.classList.remove('dragging-card');
                 document.querySelectorAll('.fx-pad').forEach(p => p.classList.remove('pad-drop-target'));
+                document.querySelectorAll('.folder-tab, .folder-card-pill').forEach(f => f.classList.remove('folder-drop-hover'));
             });
 
-            const playBtn = card.querySelector('.btn-card-play');
-            playBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                playTrackById(track.id);
+            // Bấm vào file chỉ chọn / highlight nhẹ, không phát nhạc
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.track-file-actions')) return;
+                document.querySelectorAll('.track-file-item').forEach(c => c.classList.remove('selected-file'));
+                card.classList.add('selected-file');
             });
 
-            card.addEventListener('click', () => {
-                playTrackById(track.id);
-            });
+            // Nút bỏ file vào thư mục
+            const folderBtn = card.querySelector('.btn-file-act.folder');
+            if (folderBtn) {
+                folderBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openMoveFileModal(track.id);
+                });
+            }
 
-            card.querySelector('.btn-card-del').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (currentPlayingTrackId === track.id) {
-                    engine.stopDeck('A');
-                    currentPlayingTrackId = null;
-                    if (playerTrackTitle) playerTrackTitle.textContent = 'Chưa phát bài hát nào';
-                    if (playerTrackStatus) playerTrackStatus.textContent = 'Bấm ▶ Phát trực tiếp bài hát bên dưới';
-                    if (playlistProgressFill) playlistProgressFill.style.width = '0%';
-                    if (playlistCurrentTime) playlistCurrentTime.textContent = '00:00';
-                }
-                playlistTracks = playlistTracks.filter(t => t.id !== track.id);
-                if (window.audioDB) {
-                    window.audioDB.deleteTrack(track.id);
-                }
-                renderPlaylist();
-            });
+            // Nút xóa file
+            const delBtn = card.querySelector('.btn-file-act.del');
+            if (delBtn) {
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (currentPlayingTrackId === track.id) {
+                        engine.stopDeck('A');
+                        currentPlayingTrackId = null;
+                        if (playerTrackTitle) playerTrackTitle.textContent = 'Chưa phát bài hát nào';
+                        if (playerTrackStatus) playerTrackStatus.textContent = 'Bấm ▶ Phát trực tiếp bài hát bên dưới';
+                        if (playlistProgressFill) playlistProgressFill.style.width = '0%';
+                        if (playlistCurrentTime) playlistCurrentTime.textContent = '00:00';
+                    }
+                    playlistTracks = playlistTracks.filter(t => t.id !== track.id);
+                    if (window.audioDB) {
+                        window.audioDB.deleteTrack(track.id);
+                    }
+                    renderPlaylist();
+                    showToast(`🗑 Đã xóa "${track.title}"!`);
+                });
+            }
 
             playlistContainer.appendChild(card);
         });
     }
 
     // Hàm nạp danh sách file vào kịch bản/danh sách nhạc
-    async function addAudioFilesToPlaylist(files) {
+    async function addAudioFilesToPlaylist(files, targetFolderId) {
         if (!files || files.length === 0) return;
+
+        // Nếu không chỉ định targetFolderId thì lấy từ activeFolderId (nếu đang ở trong thư mục con)
+        const folderToAssign = targetFolderId !== undefined ? targetFolderId : (
+            (activeFolderId !== 'all' && activeFolderId !== 'unassigned') ? activeFolderId : null
+        );
 
         for (let idx = 0; idx < files.length; idx++) {
             const f = files[idx];
@@ -1826,7 +2310,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fileName: f.name,
                 duration: durText,
                 file: f,
-                dateAdded: Date.now() + idx
+                dateAdded: Date.now() + idx,
+                folderId: folderToAssign
             };
             playlistTracks.push(trackObj);
 
@@ -1837,7 +2322,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         renderPlaylist();
-        showToast(`🎵 Đã thêm ${files.length} bài vào danh sách!`);
+        const folderName = folderToAssign ? (playlistFolders.find(f => f.id === folderToAssign)?.name || 'thư mục') : '';
+        if (folderName) {
+            showToast(`🎵 Đã thêm ${files.length} bài vào thư mục "${folderName}"!`);
+        } else {
+            showToast(`🎵 Đã thêm ${files.length} bài vào danh sách!`);
+        }
     }
 
     if (playlistFileInput) {
@@ -1847,6 +2337,69 @@ document.addEventListener('DOMContentLoaded', () => {
             playlistFileInput.value = '';
         });
     }
+
+    if (btnCreateFolder) {
+        btnCreateFolder.addEventListener('click', () => {
+            openCreateFolderModal();
+        });
+    }
+
+    // Sự kiện modal tạo thư mục
+    if (btnFolderModalClose) {
+        btnFolderModalClose.addEventListener('click', () => {
+            if (folderModal) folderModal.classList.add('hidden');
+        });
+    }
+    if (btnFolderModalCancel) {
+        btnFolderModalCancel.addEventListener('click', () => {
+            if (folderModal) folderModal.classList.add('hidden');
+        });
+    }
+    if (btnFolderModalSave) {
+        btnFolderModalSave.addEventListener('click', saveFolderFromModal);
+    }
+    if (folderNameInput) {
+        folderNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveFolderFromModal();
+            } else if (e.key === 'Escape') {
+                if (folderModal) folderModal.classList.add('hidden');
+            }
+        });
+    }
+
+    // Gợi ý nhanh tên thư mục phổ biến cho sự kiện
+    document.querySelectorAll('.btn-folder-tag').forEach(tag => {
+        tag.addEventListener('click', () => {
+            if (folderNameInput) {
+                folderNameInput.value = tag.dataset.name || tag.textContent.trim();
+                folderNameInput.focus();
+            }
+        });
+    });
+
+    // Sự kiện modal chuyển file vào thư mục
+    if (btnMoveFileModalClose) {
+        btnMoveFileModalClose.addEventListener('click', () => {
+            if (moveFileModal) moveFileModal.classList.add('hidden');
+        });
+    }
+    if (btnMoveFileModalCancel) {
+        btnMoveFileModalCancel.addEventListener('click', () => {
+            if (moveFileModal) moveFileModal.classList.add('hidden');
+        });
+    }
+
+    // Đóng modal khi bấm ra ngoài vùng đen overlay
+    window.addEventListener('click', (e) => {
+        if (folderModal && e.target === folderModal) {
+            folderModal.classList.add('hidden');
+        }
+        if (moveFileModal && e.target === moveFileModal) {
+            moveFileModal.classList.add('hidden');
+        }
+    });
 
     // Cho phép kéo thả file từ máy tính thẳng vào khu vực danh sách nhạc
     if (playlistContainer) {
@@ -1901,6 +2454,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function restorePersistedAudioData() {
         if (!window.audioDB) return;
         try {
+            // 0. Khôi phục danh sách thư mục từ Node.js Server (nếu kết nối được)
+            if (window.serverSync) {
+                try {
+                    const serverFolders = await window.serverSync.getFolders();
+                    if (serverFolders && serverFolders.length > 0) {
+                        serverFolders.forEach(sf => {
+                            if (!playlistFolders.some(lf => lf.id === sf.id)) {
+                                playlistFolders.push(sf);
+                            }
+                        });
+                        saveFolders();
+                    }
+                } catch (e) {}
+            }
+
             // 1. Khôi phục toàn bộ bài hát kịch bản từ IndexedDB
             const savedTracks = await window.audioDB.getAllTracks();
             if (savedTracks && savedTracks.length > 0) {

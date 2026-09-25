@@ -11,7 +11,7 @@
     <noscript>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
     </noscript>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=13">
     <!-- PWA Meta & Icons -->
     <meta name="theme-color" content="#0a0c10">
     <meta name="mobile-web-app-capable" content="yes">
@@ -90,7 +90,7 @@
                             <span class="central-pad-name" id="centralPadName">Chưa chọn phím</span>
                         </div>
                         <div class="central-btn-group">
-                            <button type="button" class="btn-central-act btn-central-play" id="btnCentralPlay" title="Phát hoặc Tạm dừng hiệu ứng đang chọn">
+                            <button type="button" class="btn-central-act btn-central-play" id="btnCentralPlay" title="Phát hoặc Tạm dừng hiệu ứng đang chọn (Phím tắt: Phím Space)">
                                 <span id="centralPlayIcon">▶</span> <span id="centralPlayText">Phát</span>
                             </button>
                             <button type="button" class="btn-central-act btn-central-loop" id="btnCentralLoop" title="Bật/Tắt lặp lại liên tục cho phím này">
@@ -100,14 +100,14 @@
                                 🔉 Nhỏ dần 3s
                             </button>
                         </div>
-                <div class="header-master-vol" title="Âm lượng xuất ra loa chính">
+                <div class="header-master-vol" title="Âm lượng xuất ra loa chính (Phím tắt: Mũi tên Trái ⬅️ / Phải ➡️)">
                     <span class="header-vol-icon">🔊</span>
                     <div class="header-vol-controls">
                         <div class="header-vol-label-row">
                             <span class="header-vol-title">ÂM LƯỢNG TỔNG</span>
-                            <span id="masterVolVal" class="header-vol-val">90%</span>
+                            <span id="masterVolVal" class="header-vol-val">0%</span>
                         </div>
-                        <input type="range" id="masterVolumeSlider" min="0" max="1.2" step="0.01" value="0.9" class="slider header-master-slider">
+                        <input type="range" id="masterVolumeSlider" min="0" max="100" step="1" value="0" class="slider header-master-slider" title="Điều chỉnh âm lượng tổng (Phím tắt: Mũi tên Trái ⬅️ / Phải ➡️)">
                     </div>
                     <div class="ducking-indicator" id="duckingBadge" style="display: none;">NHẠC CHUẨN</div>
                 </div>
@@ -140,7 +140,7 @@
         </div>
 
         <!-- KHU VỰC DƯỚI: KỊCH BẢN SỰ KIỆN THEO TIẾN TRÌNH & DANH SÁCH BÀI HÁT -->
-        <!-- KHU VỰC DANH SÁCH NHẠC NỀN ĐÃ TẢI LÊN -->
+        <!-- KHU VỰC DƯỚI: DANH SÁCH NHẠC ĐÃ TẢI LÊN & QUẢN LÝ THƯ MỤC -->
         <footer class="uploaded-music-area" id="uploadedMusicArea">
             <div class="music-header-row">
                 <div class="music-title-group">
@@ -150,6 +150,9 @@
                 </div>
 
                 <div class="music-actions-group">
+                    <button type="button" class="btn-create-folder" id="btnCreateFolder" title="Tạo thư mục mới để phân loại file nhạc">
+                        📁 + TẠO THƯ MỤC
+                    </button>
                     <label class="btn-upload-direct" title="Tải lên file nhạc MP3, WAV từ máy tính (chọn 1 hoặc nhiều file)">
                         ➕ TẢI LÊN FILE NHẠC TỪ MÁY TÍNH
                         <input type="file" id="playlistFileInput" accept="audio/*" multiple class="hidden-input">
@@ -157,10 +160,14 @@
                 </div>
             </div>
 
+            <!-- THANH ĐIỀU HƯỚNG THƯ MỤC (FOLDER TABS / NAVIGATION) -->
+            <div class="folder-nav-bar" id="folderNavBar">
+                <!-- Rendered dynamically by JavaScript -->
+            </div>
 
-            <!-- DANH SÁCH TẤT CẢ FILE ĐÃ UP -->
+            <!-- DANH SÁCH FILE VÀ THƯ MỤC -->
             <div class="uploaded-files-container" id="playlistContainer">
-                <!-- Hiển thị tất cả file đã tải lên bằng JavaScript -->
+                <!-- Hiển thị thư mục và file nhạc (chỉ gồm icon file & tên file) bằng JavaScript -->
             </div>
         </footer>
         </div><!-- end split-container -->
@@ -329,12 +336,12 @@
             <div class="modal-body">
                 <div class="hotkey-table-grid">
                     <div class="hotkey-row">
-                        <span class="hk-badge">ESC</span>
-                        <span class="hk-desc">🚨 <strong>DỪNG KHẨN CẤP</strong> - Ngắt toàn bộ âm thanh ngay lập tức khi có sự cố</span>
+                        <span class="hk-badge">Space</span>
+                        <span class="hk-desc">▶ / ⏸ <strong>Phát / Tạm dừng</strong> ô phím hiệu ứng đang chọn (Thanh trung tâm)</span>
                     </div>
                     <div class="hotkey-row">
-                        <span class="hk-badge">Shift + Space</span>
-                        <span class="hk-desc">▶ <strong>Phát / Tạm dừng</strong> nhạc nền kịch bản sự kiện</span>
+                        <span class="hk-badge">⬅️ / ➡️</span>
+                        <span class="hk-desc">🔊 <strong>Tăng / Giảm Âm lượng tổng</strong> theo từng đơn vị 1% (Mũi tên Trái / Phải)</span>
                     </div>
                     <div class="hotkey-row">
                         <span class="hk-badge">Phím 0 - 9</span>
@@ -343,6 +350,10 @@
                     <div class="hotkey-row">
                         <span class="hk-badge">Phím A - Z</span>
                         <span class="hk-desc">Bấm nhanh toàn bộ 26 phím chữ cái tiếng Anh từ <strong>A đến Z</strong></span>
+                    </div>
+                    <div class="hotkey-row">
+                        <span class="hk-badge">ESC</span>
+                        <span class="hk-desc">🚨 <strong>DỪNG KHẨN CẤP</strong> - Ngắt toàn bộ âm thanh ngay lập tức khi có sự cố</span>
                     </div>
                 </div>
             </div>
@@ -459,10 +470,58 @@
         </div>
     </div>
 
+    <!-- HỘP THOẠI: TẠO / ĐỔI TÊN THƯ MỤC -->
+    <div class="modal-overlay hidden" id="folderModal">
+        <div class="modal-card modal-card-sm">
+            <div class="modal-header">
+                <h3 id="folderModalTitle">📁 Tạo Thư Mục Mới</h3>
+                <button type="button" class="btn-modal-close" id="btnFolderModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="folderNameInput">Tên thư mục:</label>
+                    <input type="text" id="folderNameInput" class="form-input" placeholder="Ví dụ: Khai mạc, Trao giải, Văn nghệ..." autocomplete="off">
+                </div>
+                <div class="folder-suggestions-row">
+                    <span class="suggestion-label">Gợi ý nhanh:</span>
+                    <button type="button" class="btn-folder-tag" data-name="Khai mạc">Khai mạc</button>
+                    <button type="button" class="btn-folder-tag" data-name="Trao giải">Trao giải</button>
+                    <button type="button" class="btn-folder-tag" data-name="Văn nghệ">Văn nghệ</button>
+                    <button type="button" class="btn-folder-tag" data-name="Nhạc nền tiệc">Nhạc nền tiệc</button>
+                    <button type="button" class="btn-folder-tag" data-name="Game show">Game show</button>
+                    <button type="button" class="btn-folder-tag" data-name="Bế mạc">Bế mạc</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnFolderModalCancel">Hủy</button>
+                <button type="button" class="btn-primary" id="btnFolderModalSave">Lưu thư mục</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HỘP THOẠI: BỎ FILE VÀO THƯ MỤC -->
+    <div class="modal-overlay hidden" id="moveFileModal">
+        <div class="modal-card modal-card-sm">
+            <div class="modal-header">
+                <h3 id="moveFileModalTitle">📁 Bỏ File Vào Thư Mục</h3>
+                <button type="button" class="btn-modal-close" id="btnMoveFileModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="move-file-subtitle" id="moveFileSubtitle">Chọn thư mục để chuyển bài hát vào:</p>
+                <div id="moveFileTargetList" class="move-folder-list">
+                    <!-- Populated dynamically by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnMoveFileModalCancel">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Nạp mã nguồn kịch bản xử lý -->
-    <script src="audio-engine.js"></script>
-    <script src="audio-db.js"></script>
-    <script src="app.js"></script>
+    <script src="audio-engine.js?v=13"></script>
+    <script src="audio-db.js?v=13"></script>
+    <script src="app.js?v=13"></script>
 
     <!-- Đăng ký Progressive Web App (PWA) & Xử lý Cài đặt Đa Nền Tảng -->
     <script>
