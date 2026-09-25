@@ -146,6 +146,18 @@ class EventAudioEngine {
         deck.audio.addEventListener('loadedmetadata', () => {
             deck.duration = deck.audio.duration;
         });
+
+        // Tự động nhỏ nhạc từ từ (Fade out) ở 5 giây cuối cùng của bài hát
+        deck.audio.addEventListener('timeupdate', () => {
+            if (!deck.isPlaying || deck.isLooping || !deck.duration || deck.duration <= 5.0 || deck.fadeInterval) return;
+            const remaining = deck.duration - deck.audio.currentTime;
+            if (remaining <= 5.0 && remaining > 0) {
+                const factor = Math.max(0, remaining / 5.0);
+                if (deck.gain && this.ctx) {
+                    deck.gain.gain.setValueAtTime(deck.volume * factor, this.ctx.currentTime);
+                }
+            }
+        });
     }
 
     // Khởi tạo AudioContext nếu chưa có
@@ -1007,9 +1019,23 @@ class EventAudioEngine {
             }
         };
 
-        source.start(0, offset);
-
         const remainingDur = buffer.duration - offset;
+
+        // Tự động nhỏ nhạc từ từ (Fade-out) ở 5 giây cuối cùng của bài hát
+        if (!state.isLoop) {
+            if (remainingDur > 5.0) {
+                const fadeStartTime = this.ctx.currentTime + (remainingDur - 5.0);
+                const fadeEndTime = this.ctx.currentTime + remainingDur;
+                gainNode.gain.setValueAtTime(padGainVal, fadeStartTime);
+                gainNode.gain.linearRampToValueAtTime(0.0001, fadeEndTime);
+            } else if (remainingDur > 0.5) {
+                // Nếu thời lượng còn lại dưới 5s (hoặc file ngắn), nhỏ dần đều từ vị trí hiện tại đến hết
+                gainNode.gain.setValueAtTime(padGainVal, this.ctx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + remainingDur);
+            }
+        }
+
+        source.start(0, offset);
         return remainingDur > 0 ? remainingDur : buffer.duration;
     }
 
