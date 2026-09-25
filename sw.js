@@ -1,6 +1,6 @@
 // Service Worker cho Trình Phát Nhạc Sự Kiện NIX BÙI
-// Phiên bản v13 - Hỗ trợ cài đặt PWA trên iPhone, iPad, Android và Desktop
-const CACHE_NAME = 'nhac-su-kien-v13';
+// Phiên bản v14 - Hỗ trợ cài đặt PWA trên iPhone, iPad, Android và Desktop
+const CACHE_NAME = 'nhac-su-kien-v14';
 
 const ASSETS_TO_CACHE = [
   './',

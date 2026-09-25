@@ -382,22 +382,20 @@ body {
     align-items: center;
     gap: 3px;
     height: 24px;
-    color: #ffbf69;
 }
 
 .brand-equalizer i {
     width: 3px;
     height: 10px;
     border-radius: 2px;
-    background: currentColor;
     transform-origin: center;
     animation: brand-beat 1.2s ease-in-out infinite alternate;
 }
 
-.brand-equalizer i:nth-child(2) { height: 22px; animation-delay: -0.6s; }
-.brand-equalizer i:nth-child(3) { height: 16px; animation-delay: -0.3s; }
-.brand-equalizer i:nth-child(4) { height: 8px; animation-delay: -0.9s; }
-[data-theme="light"] .brand-equalizer { color: #c45b15; }
+.brand-equalizer i:nth-child(1) { background: #ff2a5f; height: 10px; }
+.brand-equalizer i:nth-child(2) { background: #ffea00; height: 22px; animation-delay: -0.6s; }
+.brand-equalizer i:nth-child(3) { background: #00f076; height: 16px; animation-delay: -0.3s; }
+.brand-equalizer i:nth-child(4) { background: #00c8ff; height: 8px; animation-delay: -0.9s; }
 
 .logo-text {
     min-width: 0;
@@ -415,42 +413,59 @@ body {
 .logo-text h1 {
     font-family: var(--font-display);
     font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: var(--text-primary);
+    font-weight: 800;
+    letter-spacing: 0.8px;
     display: flex;
     align-items: center;
     gap: 8px;
     line-height: 1.2;
 }
 
-@supports (background-clip: text) or (-webkit-background-clip: text) {
-    .brand-name,
-    .logo-text h1 {
-        background-image: linear-gradient(110deg, var(--text-primary) 30%, #ffb75e 45%, var(--text-primary) 60%);
-        background-size: 250% 100%;
-        background-clip: text;
-        -webkit-background-clip: text;
-        color: transparent;
-        animation: brand-shimmer 5s ease-in-out infinite;
+/* HIỆU ỨNG CHỮ 7 SẮC CẦU VỒNG CHẠY MÀU LIÊN TỤC */
+.brand-name,
+.logo-text h1 {
+    background: linear-gradient(
+        90deg,
+        #ff0055,
+        #ff5500,
+        #ffcc00,
+        #00e676,
+        #00b0ff,
+        #651fff,
+        #d500f9,
+        #ff0055
+    );
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    animation: rainbow-text-flow 4s linear infinite;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.brand-name {
+    letter-spacing: 1.5px;
+    font-weight: 900;
+    filter: drop-shadow(0 2px 8px rgba(255, 85, 0, 0.35));
+}
+
+.logo-text h1 {
+    filter: drop-shadow(0 2px 10px rgba(0, 176, 255, 0.25));
+}
+
+@keyframes rainbow-text-flow {
+    0% {
+        background-position: 0% 50%;
     }
-    .brand-name {
-        background-image: linear-gradient(110deg, #fff0d2 30%, #ffb75e 45%, #fff0d2 60%);
-        animation-delay: -1.5s;
-    }
-    [data-theme="light"] .brand-name {
-        background-image: linear-gradient(110deg, #9a3412 30%, #d97706 45%, #9a3412 60%);
+    100% {
+        background-position: 300% 50%;
     }
 }
 
 @keyframes brand-beat {
     from { transform: scaleY(0.45); }
     to { transform: scaleY(1); }
-}
-
-@keyframes brand-shimmer {
-    0%, 15% { background-position: 100% 50%; }
-    85%, 100% { background-position: 0% 50%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
