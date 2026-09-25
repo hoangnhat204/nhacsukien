@@ -817,6 +817,17 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCentralController();
     }
 
+    function ensureAudibleMasterVolume() {
+        if (masterVolumeSlider) {
+            const cur = parseInt(masterVolumeSlider.value, 10) || 0;
+            if (cur === 0) {
+                masterVolumeSlider.value = '80';
+                engine.setMasterVolume(0.8);
+                if (masterVolVal) masterVolVal.textContent = '80%';
+            }
+        }
+    }
+
     async function triggerPad(padId, fromStart = false, seekSeconds = null) {
         const data = padData[padId];
         const padEl = document.querySelector(`.fx-pad[data-pad="${padId}"]`);
@@ -824,7 +835,13 @@ document.addEventListener('DOMContentLoaded', () => {
         currentActivePadId = padId;
         updateCentralController();
 
-        // Nếu chưa có file âm thanh thì mở hộp thoại cấu hình để người dùng nạp file
+        // 1. Đảm bảo audio context hoạt động và có âm lượng
+        if (engine && engine.resumeContext) {
+            await engine.resumeContext();
+        }
+        ensureAudibleMasterVolume();
+
+        // 2. Nếu chưa có file âm thanh thì mở hộp thoại cấu hình để người dùng nạp file
         if (!data.isCustom || !data.fileName || !engine.soundboardBuffers[padId]) {
             updateCentralController();
             openPadConfigModal(padId);
@@ -850,7 +867,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const progressBar = padEl ? padEl.querySelector('.pad-progress-bar') : null;
         const durLabel = padEl ? padEl.querySelector('.pad-duration') : null;
-
 
         const buffer = engine.soundboardBuffers[padId];
         const totalDuration = buffer ? buffer.duration : 1;
@@ -1023,62 +1039,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         padSeekGesture.track.title = `Phát từ ${formatPadDurationDisplay(padSeekGesture.seconds)} / ${formatPadDurationDisplay(padSeekGesture.duration)}`;
     }
-    soundboardGrid.addEventListener('pointerdown', (event) => {
-        const track = event.target.closest('.pad-progress-track');
-        if (!track || event.button !== 0 || padSeekGesture) return;
-        const padId = track.closest('.fx-pad').dataset.pad;
-        const buffer = engine.soundboardBuffers[padId];
-        if (!buffer) return;
-        event.preventDefault();
-        padSeekGesture = {
-            track,
-            padId,
-            duration: buffer.duration,
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            hasDragged: false,
-            seconds: 0
-        };
-        track.setPointerCapture(event.pointerId);
-    });
-    soundboardGrid.addEventListener('pointermove', (event) => {
-        if (!padSeekGesture || event.pointerId !== padSeekGesture.pointerId) return;
-        const dist = Math.abs(event.clientX - padSeekGesture.startX);
-        if (dist > 4) {
-            padSeekGesture.hasDragged = true;
-            previewPadSeek(event);
-        }
-    });
-    soundboardGrid.addEventListener('pointerup', (event) => {
-        if (!padSeekGesture || event.pointerId !== padSeekGesture.pointerId) return;
-        const gesture = padSeekGesture;
-        padSeekGesture = null;
-        gesture.track.releasePointerCapture(event.pointerId);
-
-        if (gesture.hasDragged) {
-            // Kéo chuột/tay trên thanh tiến trình -> Tua đến đoạn được kéo tới và phát
-            triggerPad(gesture.padId, false, gesture.seconds);
-        } else {
-            // Bấm/chạm vào phím -> Luôn phát lại từ đầu (0:00)
-            triggerPad(gesture.padId, true);
-        }
-    });
-    soundboardGrid.addEventListener('pointercancel', () => {
-        if (!padSeekGesture) return;
-        const { padId } = padSeekGesture;
-        padSeekGesture = null;
-        if (engine.isPadPlaying(padId)) {
-            const state = engine.getPadState(padId);
-            const position = (engine.ctx.currentTime - state.startTime) % engine.soundboardBuffers[padId].duration;
-            triggerPad(padId, false, position);
-        } else {
-            stopPadAnimation(padId);
-        }
-    });
-
-    // Xử lý bấm vào lưới hiệu ứng: phân biệt nút bánh răng cài đặt và chọn/phát ô phím
+    // Xử lý bấm vào lưới hiệu ứng: click để chọn & phát nhạc tức thì
     soundboardGrid.addEventListener('click', (e) => {
-        if (e.target.closest('.pad-progress-track')) return;
         // 1. Nút bánh răng cài đặt
         const gearBtn = e.target.closest('.btn-pad-gear') || e.target.closest('.btn-pad-edit');
         if (gearBtn) {
@@ -1092,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2. Bấm vào thân ô phím (Pad body)
+        // 2. Bấm vào bất kỳ vị trí nào trên ô phím (thân phím, tên bài, phím tắt, thanh tiến trình)
         const padEl = e.target.closest('.fx-pad');
         if (padEl) {
             const padId = padEl.dataset.pad;
@@ -1100,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasAudio = data && data.isCustom && data.fileName && engine.soundboardBuffers[padId];
 
             if (!hasAudio) {
-                // Nếu bấm vào ô chưa có file: mở cài đặt ô này, không làm kẹt ô đang phát
+                // Nếu bấm vào ô chưa có file: mở cài đặt ô này để người dùng nạp bài
                 const isAnyPlaying = Object.keys(padData).some(pid => engine.isPadPlaying(pid));
                 if (!isAnyPlaying) {
                     currentActivePadId = padId;
@@ -1110,8 +1072,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Đảm bảo âm lượng và phát ngay lập tức
+            ensureAudibleMasterVolume();
             currentActivePadId = padId;
-            // Bấm vào phím -> Luôn phát lại từ đầu (Play from start)
             triggerPad(padId, true);
             updateCentralController();
         }
@@ -1891,17 +1854,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 5. Bấm các ô Soundboard theo Hotkey
+        // 5. Bấm các ô Soundboard theo Hotkey (Hỗ trợ cả ký tự, bàn phím số Numpad và gõ tiếng Việt Telex/VNI)
+        const rawKey = e.key || '';
+        const key = rawKey.toUpperCase();
+        const codeKey = (e.code || '').replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, '').toUpperCase();
+
         for (const padId in padData) {
-            if (padData[padId].key && padData[padId].key.toUpperCase() === key) {
+            const pad = padData[padId];
+            const padKey = (pad.key || '').toUpperCase();
+            if (padKey && (padKey === key || padKey === codeKey)) {
                 e.preventDefault();
                 if (e.repeat) return;
-                const data = padData[padId];
+                const data = pad;
                 if (!data.isCustom || !data.fileName || !engine.soundboardBuffers[padId]) {
                     showToast(`⚠️ Phím ${data.key} (${data.name}) chưa có file âm thanh!`);
+                    openPadConfigModal(padId);
                     return;
                 }
-                triggerPad(padId, !engine.isPadPaused(padId));
+                ensureAudibleMasterVolume();
+                currentActivePadId = padId;
+                triggerPad(padId, true);
+                updateCentralController();
                 return;
             }
         }
